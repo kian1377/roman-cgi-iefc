@@ -43,7 +43,8 @@ def run_single(mode='HLC575',
                display_mode=False,
                show_fpm_steps=False,
                display_intermediates=False,
-               return_intermediates=False):
+               return_intermediates=False,
+               quiet=True):
 
     reload(misc)
     reload(polmap)
@@ -60,7 +61,7 @@ def run_single(mode='HLC575',
         
     wavelength_c = 575e-9*u.m
     if wavelength is None: wavelength = wavelength_c
-    print('Propagating wavelength {:.3f}.'.format(wavelength.to(u.nm)))
+    if not quiet: print('Propagating wavelength {:.3f}.'.format(wavelength.to(u.nm)))
 
     # find nearest available FPM wavelength that matches specified wavelength
     lam_um = wavelength.value * 1e6
@@ -473,7 +474,7 @@ def run_single(mode='HLC575',
     psf_wf = wfs1[-1].wavefront
     psf_pixelscale = wfs1[-1].pixelscale
         
-    print('PSF calculated in {:.2f}s'.format(time.time()-start))
+    if not quiet: print('PSF calculated in {:.2f}s'.format(time.time()-start))
 
     return psf2_hdu, wfs1
 

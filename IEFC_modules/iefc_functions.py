@@ -164,7 +164,7 @@ def create_dshaped_focal_plane_mask(x, y, inner_radius, outer_radius, edge_posit
 
 	r = np.hypot(x, y)
 	mask = (r < outer_radius) * (r > inner_radius)
-	
+	di
 	if direction == '+x':
 		mask *= (x > edge_position)
 	elif direction == '-x':

@@ -33,10 +33,8 @@ def make_inwave(cgi_dir, D, lambda_c_m, lambda_m, npix, oversample, offsets, pol
     wfin = poppy.FresnelWavefront(beam_radius=D/2, wavelength=lambda_m, npix=npix, oversample=oversample)
     
     if polaxis!=0: 
-        print('Employing polarization aberrations with polaxis={:d}.'.format(polaxis))
         polfile = cgi_dir/'pol'/'phasec_pol'
         polmap.polmap( wfin, str(polfile), npix, polaxis )
-    else: print('Not employing polarization aberrations.')
     
     xoffset = offsets[0]
     yoffset = offsets[1]
@@ -47,10 +45,10 @@ def make_inwave(cgi_dir, D, lambda_c_m, lambda_m, npix, oversample, offsets, pol
     y = np.transpose(x)
     wfin.wavefront = wfin.wavefront * np.exp(complex(0,1) * np.pi * (xoffset_lam * x + yoffset_lam * y))
     
-    misc.myimshow2(np.abs(wfin.wavefront)**2, np.angle(wfin.wavefront),
-                   'Input Wave Intensity', 'Input Wave Phase',
-                   pxscl=wfin.pixelscale, 
-                   cmap1='gist_heat', cmap2='viridis')
+#     misc.myimshow2(np.abs(wfin.wavefront)**2, np.angle(wfin.wavefront),
+#                    'Input Wave Intensity', 'Input Wave Phase',
+#                    pxscl=wfin.pixelscale, 
+#                    cmap1='gist_heat', cmap2='viridis')
     
     return wfin
     
