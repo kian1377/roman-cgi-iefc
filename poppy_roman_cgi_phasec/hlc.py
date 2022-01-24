@@ -468,112 +468,23 @@ def run(mode='HLC575',
     psf2_hdu, wfs2 = fosys2.calc_psf(wavelength=wavelength, inwave=wfin2, normalize='none',
                                      display_intermediates=display_intermediates, 
                                      return_final=True, return_intermediates=return_intermediates,)
-    psf = wfs2[-1].wavefront
-    psf_pixelscale = wfs2[-1].pixelscale.to(u.mm/u.pix)
     wfs1[-1] = wfin2 # set the FPM wavefront to be that of the wave after FPM is applied
     wfs1.pop(-1) # remove the final wavefront from wfs1
     wfs1.extend(wfs2) # add the second set of wfs to a single list
-    
-    psf_wf = wfs1[-1].wavefront
-    psf_pixelscale = wfs1[-1].pixelscale
         
     if not quiet: print('PSF calculated in {:.2f}s'.format(time.time()-start))
 
     return psf2_hdu, wfs1
 
 
-# def run_hlc(params):
-    
-#     mode, wavelength, npix, oversample, npsf, psf_pixelscale, offsets, dm1, dm2, use_fpm, use_fieldstop, use_opds, use_pupil_defocus, polaxis, cgi_dir, return_intermediates, quiet = params
-    
-#     psf, wfs = run_single(mode=mode,
-#                            wavelength=wavelength,
-#                            npix=npix,
-#                            oversample=oversample,
-#                            npsf=npsf, 
-#                            psf_pixelscale=psf_pixelscale,
-#                            offsets=offsets,
-#                            dm1=dm1, 
-#                            dm2=dm2,
-#                            use_fpm=use_fpm,
-#                           use_fieldstop=use_fieldstop,
-#                            use_opds=use_opds,
-#                            use_pupil_defocus=use_pupil_defocus,
-#                            polaxis=polaxis,
-#                            cgi_dir=cgi_dir,
-#                            display_mode=False,
-#                            display_inwave=False,
-#                            display_intermediates=False,
-#                            return_intermediates=return_intermediates,
-#                          quiet=quiet)
-#     return psf, wfs
-    
-# def run_multi(ncpus=None,
-#               mode='HLC575',
-#               wavelength=None,
-#               npix=310,
-#               oversample=1024/310,
-#               npsf=64,
-#               psf_pixelscale=13e-6*u.m/u.pixel,
-#               offsets=(0,0),
-#               dm1=None,
-#               dm2=None,
-#               use_fpm=True,
-#               use_fieldstop=True,
-#               use_opds=False,
-#               use_pupil_defocus=False,
-#               polaxis=0,
-#               cgi_dir=None,
-#               return_intermediates = False, 
-#               quiet=True):
 
-#     multi_param=None
-#     params = []
 
-#     if isinstance(wavelength, np.ndarray) or isinstance(wavelength, list): 
-#         multi_param = wavelength
-#         for i in range(len(wavelength)):
-#             params.append((mode, wavelength[i], npix, oversample, npsf, psf_pixelscale,
-#                            offsets, dm1, dm2, use_fpm, use_fieldstop, use_opds, use_pupil_defocus, polaxis, 
-#                            cgi_dir, return_intermediates, quiet))
-#     elif isinstance(dm1, list) and isinstance(dm2, list):
-#         print('dms')
-#         multi_param = dm1
-#         if len(dm1)==len(dm2):
-#             for i in range(len(dm1)):
-#                 params.append((mode, wavelength, npix, oversample, npsf, psf_pixelscale,
-#                                offsets, dm1[i], dm2[i], use_fpm, use_fieldstop, use_opds, use_pupil_defocus, polaxis, 
-#                                cgi_dir, return_intermediates, quiet))
-#         else: print('The length of the dm1 list must match the length of the dm2 list.')
-#     else: 
-#         params.append((mode, wavelength, npix, oversample, npsf, psf_pixelscale,
-#                        offsets, dm1, dm2, 
-#                        use_fpm, use_fieldstop, use_opds, use_pupil_defocus, polaxis, 
-#                        cgi_dir, return_intermediates, quiet))
-    
-# #     with mp.get_context("spawn").Pool() as pool:
-# #         results = pool.map(run_hlc, params)
-# #         pool.close()
-# #         pool.join()
-        
-#     if ncpus is not None:
-#         pool = mp.Pool(ncpus)
-#     else:
-#         ncpus = mp.cpu_count()
-#         pool = mp.Pool(ncpus)
-#     results = pool.map(run_hlc, params)
-#     pool.close()
-#     pool.join()
 
-#     psfs = []
-#     wfs = []
-#     if multi_param is not None:
-#         for i in range(len(multi_param)): 
-#             psfs.append(results[i][0][0])
-#             wfs.append(results[i][1])
-#     else:
-#         psfs.append(results[0][0][0])
-#         wfs.append(results[0][1])
-    
-#     return psfs, wfs
+
+
+
+
+
+
+
 
