@@ -26,7 +26,8 @@ from importlib import reload
 
 from .import utils
 from .import polmap
-from .import misc
+# from .import misc
+import misc
 
 def run(mode='HLC575',
                wavelength=None,
@@ -57,7 +58,7 @@ def run(mode='HLC575',
     #################### Initialize directories and file names for the masks and OPDs    
     opticsdir = cgi_dir/'hlc'
     opddir = cgi_dir/'hlc-opds'
-    dmsdir = cgi_dir/'dms'
+    dmdir = cgi_dir/'dm-acts'
     
     pupil_fname = str(opticsdir/'pupil.fits')
     lyotstop_fname = str(opticsdir/'lyot_rotated.fits')
@@ -106,22 +107,34 @@ def run(mode='HLC575',
         fieldstop = poppy.CircularAperture(radius=radius, name='HLC Field Stop')
     else: fieldstop = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='Field Stop Plane (No Optic)')
     
-    if dm1 is None: dm1 = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='DM1 Plane (No Optic)')
+    Nact = 48
+    dm_diam = 46.3*u.mm
+    act_spacing = 0.9906*u.mm
+    
+    if dm1 is None: DM1 = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='DM1 Plane (No Optic)')
     elif isinstance(dm1,str): 
-        dm1 = poppy.FITSOpticalElement('DM1', opd=str(dmsdir/dm1), opdunits='meters', planetype=PlaneType.intermediate)
-        dm1.opd = 2*dm1.opd
-
-    if dm2 is None: dm2 = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='DM2 Plane (No Optic)')
+        DM1 = poppy.FITSOpticalElement('DM1', opd=str(dmdir/dm1), opdunits='meters', planetype=PlaneType.intermediate)
+        DM1.opd = 2*DM1.opd
+    elif isinstance(dm1, np.ndarray):
+        DM1 = poppy.ContinuousDeformableMirror(dm_shape=(Nact,Nact), name='DM1', 
+                                               actuator_spacing=act_spacing, radius=dm_diam/2,
+                                               influence_func=str(dmdir/'proper_inf_func.fits'))
+        DM1.set_surface(dm1)
+    elif isinstance(dm1, poppy.ContinuousDeformableMirror): DM1 = dm1
+        
+    if dm2 is None: DM2 = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='DM2 Plane (No Optic)')
     elif isinstance(dm2, str):
-        dm2 = poppy.FITSOpticalElement('DM2', opd=str(dmsdir/dm2), opdunits='meters', planetype=PlaneType.intermediate)
-        dm2.opd = 2*dm2.opd
+        DM2 = poppy.FITSOpticalElement('DM2', opd=str(dmdir/dm2), opdunits='meters', planetype=PlaneType.intermediate)
+        DM2.opd = 2*dm2.opd
+    elif isinstance(dm2, np.ndarray):
+        DM2 = poppy.ContinuousDeformableMirror(dm_shape=(Nact,Nact), name='DM1', 
+                                               actuator_spacing=act_spacing, radius=dm_diam/2,
+                                               influence_func=str(dmdir/'proper_inf_func.fits'))
+        DM2.set_surface(dm2)
+    elif isinstance(dm2, poppy.ContinuousDeformableMirror): DM2 = dm2
     
     if display_mode:
         misc.myimshow(pupil.amplitude, 'Roman Pupil', pxscl=pupil.pixelscale)
-        if dm1 is not None and isinstance(dm1, poppy.ScalarTransmission)==False: 
-            misc.myimshow(dm1.opd, 'DM1', pxscl=dm1.pixelscale)
-        if dm2 is not None and isinstance(dm2, poppy.ScalarTransmission)==False: 
-            misc.myimshow(dm2.opd, 'DM2', pxscl=dm2.pixelscale)
         misc.myimshow2(FPM.amplitude, FPM.opd, 'FPM Amplitude', 'FPM OPD', pxscl=FPM.pixelscale)
         misc.myimshow(LS.amplitude, 'Lyot stop', pxscl=LS.pixelscale)    
     
@@ -358,10 +371,10 @@ def run(mode='HLC575',
     fosys1.add_optic(oap2, distance=d_focm_oap2)
     if use_opds: fosys1.add_optic(oap2_opd)
         
-    fosys1.add_optic(dm1, distance=d_oap2_dm1)
+    fosys1.add_optic(DM1, distance=d_oap2_dm1)
     if use_opds: fosys1.add_optic(dm1_opd)
         
-    fosys1.add_optic(dm2, distance=d_dm1_dm2)
+    fosys1.add_optic(DM2, distance=d_dm1_dm2)
     if use_opds: fosys1.add_optic(dm2_opd)
         
     fosys1.add_optic(oap3, distance=d_dm2_oap3)

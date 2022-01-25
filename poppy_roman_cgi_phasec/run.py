@@ -5,10 +5,9 @@ import astropy.units as u
 from .import hlc
 
 def run_hlc(params):
-    print('run_hlc')
     
     mode, wavelength, npix, oversample, npsf, psf_pixelscale, offsets, dm1, dm2, use_fpm, use_fieldstop, use_opds, use_pupil_defocus, polaxis, cgi_dir, return_intermediates, quiet = params
-    
+#     print('run_hlc')
     psf, wfs = hlc.run(mode=mode,
                            wavelength=wavelength,
                            npix=npix,
@@ -46,20 +45,19 @@ def run_multi(ncpus=None,
               use_pupil_defocus=False,
               polaxis=0,
               cgi_dir=None,
-              return_intermediates = False, 
+              return_intermediates=False, 
               quiet=True):
     
     multi_param = None
     params = []
-
-    if isinstance(wavelength, np.ndarray) or isinstance(wavelength, list): 
+    
+    if isinstance(wavelength, np.ndarray) and wavelength.ndim==1 or isinstance(wavelength, list): 
         if not quiet: print('Running mode ' + mode + ' for multiple wavelengths.')
         multi_param = wavelength
         for i in range(len(wavelength)):
             params.append((mode, wavelength[i], npix, oversample, npsf, psf_pixelscale,
                            offsets, dm1, dm2, use_fpm, use_fieldstop, use_opds, use_pupil_defocus, polaxis, 
                            cgi_dir, return_intermediates, quiet))
-            print(params[i]); print()
     elif isinstance(dm1, list) and isinstance(dm2, list):
         if not quiet: print('Running mode ' + mode + ' for multiple DM settings.')
         multi_param = dm1
@@ -68,7 +66,6 @@ def run_multi(ncpus=None,
                 params.append((mode, wavelength, npix, oversample, npsf, psf_pixelscale,
                                offsets, dm1[i], dm2[i], use_fpm, use_fieldstop, use_opds, use_pupil_defocus, polaxis, 
                                cgi_dir, return_intermediates, quiet))
-                print(params[i]); print()
         else: print('The length of the dm1 list must match the length of the dm2 list.')
     else: 
         params.append((mode, wavelength, npix, oversample, npsf, psf_pixelscale,

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import poppy
 from poppy_roman_cgi_phasec import hlc
+from poppy_roman_cgi_phasec import run
 import misc
 
 class CGI():
@@ -75,7 +76,7 @@ class CGI():
         self.DM2.set_surface(self.DM2.surface + dm_command)
         
     def calc_psf(self):
-        psf, wf = hlc.run_single(wavelength=self.wavelength, npix=310, oversample=1024/310, 
+        psf, wf = hlc.run(wavelength=self.wavelength, npix=310, oversample=1024/310, 
                                  npsf=self.npsf, psf_pixelscale=self.psf_pixelscale,
                                  dm1=self.DM1, dm2=self.DM2,
                                  use_opds=self.use_opds, polaxis=self.polaxis,
@@ -83,13 +84,19 @@ class CGI():
                                  cgi_dir=self.cgi_dir, quiet=self.quiet)
         return wf[-1].intensity
     
-    def calc_multi_psf(self, dm1_commands, dm2_commands):
+    def calc_psfs(self, dm1_commands, dm2_commands):
+        ''' dm1_commands and dm2_commands must be lists of np.ndarrays '''
         
-        psf, wf = hlc.run_single(wavelength=self.wavelength, npix=310, oversample=1024/310, 
+        for i in range(len(dm1_commands)): 
+            dm1_commands[i] += self.DM1.surface
+            dm2_commands[i] += self.DM2.surface
+#             misc.myimshow(dm1_commands[i])
+            
+        psfs, wfs = run.run_multi(wavelength=self.wavelength, npix=310, oversample=1024/310, 
                                  npsf=self.npsf, psf_pixelscale=self.psf_pixelscale,
-                                 dm1=DM1s, dm2=DM2s,
+                                 dm1=dm1_commands, dm2=dm2_commands,
                                  use_opds=self.use_opds, polaxis=self.polaxis,
                                  use_pupil_defocus=self.use_pupil_defocus, use_fieldstop=self.use_fieldstop,
-                                 cgi_dir=self.cgi_dir)
-        return wf[-1].intensity
+                                 cgi_dir=self.cgi_dir, quiet=self.quiet)
+        return wfs
         

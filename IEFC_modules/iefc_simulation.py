@@ -10,24 +10,34 @@ from scipy.sparse import linalg as sLA
 def take_measurement(sysi, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
     differential_operator = np.array([ [-1,1,0,0] , [0,0,-1,1] ]) / (2 * probe_amplitude * sysi.texp)
     
-    # Measure the response
-    images = []
-    for probe in probe_cube:
-        for s in [-1.0, 1.0]:
-            # Add the probe to the DM
-#             system_interface.add_dm(s * probe_amplitude * probe)
-            sysi.add_dm1(s * probe_amplitude * probe)
+#     # Measure the response
+#     images = []
+#     for probe in probe_cube:
+#         for s in [-1.0, 1.0]:
+#             # Add the probe to the DM
+# #             system_interface.add_dm(s * probe_amplitude * probe)
+#             sysi.add_dm1(s * probe_amplitude * probe)
             
-            # Measure the response
-#             sysi.send_dm()
-#             image = system_interface.snap()
-            image = sysi.calc_psf()
-            images.append(image.flatten())
+#             # Measure the response
+# #             sysi.send_dm()
+# #             image = system_interface.snap()
+#             image = sysi.calc_psf()
+#             images.append(image.flatten())
             
-            # Remove the probe from the DM
-#             system_interface.add_dm(-s * probe_amplitude * probe)
-            sysi.add_dm1(-s * probe_amplitude * probe)
-            
+#             # Remove the probe from the DM
+# #             system_interface.add_dm(-s * probe_amplitude * probe)
+#             sysi.add_dm1(-s * probe_amplitude * probe)
+
+    dm1_commands = [-1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
+                    1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
+                    -1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact),
+                    1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact)]
+    dm2_commands = [np.zeros((48,48)), np.zeros((48,48)), np.zeros((48,48)), np.zeros((48,48))]
+    wfs = sysi.calc_psfs(dm1_commands, dm2_commands)
+    
+    images=[]
+    for i,wf in enumerate(wfs): images.append(wf.intensity.flatten())
+    
 #     system_interface.send_dm()
     images = np.array(images)
     differential_images = differential_operator.dot(images)
