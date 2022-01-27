@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.patches import Circle, Rectangle
 from scipy import interpolate
 import time
 from datetime import date
@@ -176,10 +177,10 @@ def construct_control_matrix(response_matrix, weight_map, rcond=1e-2, pca_modes=
         return control_matrix
 
 
-
-
-
-
+def create_rect_patch(rect_params):
+    rect_patch = Rectangle((rect_params['x0']-rect_params['w']/2, rect_params['y0']-rect_params['h']/2), 
+                           rect_params['w'], rect_params['h'], color='c', fill=False)
+    return rect_patch
 
 
 

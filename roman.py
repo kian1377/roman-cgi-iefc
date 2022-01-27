@@ -92,7 +92,7 @@ class CGI():
             dm2_commands[i] += self.DM2.surface
 #             misc.myimshow(dm1_commands[i])
             
-        psfs, wfs = run.run_multi(wavelength=self.wavelength, npix=310, oversample=1024/310, 
+        psfs, wfs = run.run_multi(ncpus=16, wavelength=self.wavelength, npix=310, oversample=1024/310, 
                                  npsf=self.npsf, psf_pixelscale=self.psf_pixelscale,
                                  dm1=dm1_commands, dm2=dm2_commands,
                                  use_opds=self.use_opds, polaxis=self.polaxis,
