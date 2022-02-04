@@ -94,8 +94,8 @@ def single_iteration(sysi, probe_cube, probe_amplitude, control_matrix, pixel_ma
     
     return reconstructed_coefficients
 
-def create_fourier_modes(xfp, mask, Nact=34, use_both=True):
-    print("Createing Fourier modes: ", mask.shape)
+def create_fourier_modes(xfp, mask, Nact=48, use_both=True, circular_mask=True):
+    print("Creating Fourier modes: ", mask.shape)
     intp = interpolate.interp2d(xfp, xfp, mask)
     
     # This creates the grid and frequencies
@@ -129,6 +129,13 @@ def create_fourier_modes(xfp, mask, Nact=34, use_both=True):
         M = np.array([np.sin(2 * np.pi * (fi[0] * x + fi[1] * y)) for fi in zip(fx, fy)])
         
     M /= np.std(M, axis=1, keepdims=True)
+    
+    if circular_mask: 
+        circ = np.ones((Nact,Nact))
+        r = np.sqrt(x.reshape((Nact,Nact))**2 + y.reshape((Nact,Nact))**2)
+        circ[r>(Nact)/2] = 0
+        M[:] *= circ.flatten()
+        
     return M, fx, fy
 
 def create_probe_poke_modes(Nact, indx0, indy0, indx1, indy1):

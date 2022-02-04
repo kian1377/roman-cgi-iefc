@@ -8,7 +8,6 @@ import astropy.units as u
 import numpy as np
 import scipy
 from scipy.interpolate import interp1d
-import multiprocessing as mp
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
@@ -23,28 +22,29 @@ from importlib import reload
 
 from .import utils
 from .import polmap
-from .import misc
+import misc
 
-def run_single(mode='SPC730',
-               wavelength=None,
-                npix=1000,
-                oversample=2.048,
-                npsf=64,
-                psf_pixelscale=13*u.micron/u.pixel,
-                offsets=(0,0),
-                dm1=None,
-                dm2=None,
-                use_fpm=True,
-                use_opds=False,
-                use_pupil_defocus=False,
-                use_apertures=False,
-                polaxis=0,
-                cgi_dir=None,
-                display_mode=False,
-                display_inwave=False,
-                display_intermediates=False,
-                return_intermediates=False):
-    
+def run(mode='SPC730',
+        wavelength=None,
+        npix=1000,
+        oversample=2.048,
+        npsf=64,
+        psf_pixelscale=13*u.micron/u.pixel,
+        offsets=(0,0),
+        dm1=None,
+        dm2=None,
+        use_fpm=True,
+        use_opds=False,
+        use_pupil_defocus=False,
+        use_apertures=False,
+        polaxis=0,
+        cgi_dir=None,
+        display_mode=False,
+        display_inwave=False,
+        display_intermediates=False,
+        return_intermediates=False,
+        quiet=True):
+
     diam = 2.363114*u.m
     
     #################### Initialize directories and file names for the masks and OPDs
@@ -66,7 +66,7 @@ def run_single(mode='SPC730',
         lyotstop_fname = str(opticsdir/'LS_SPC-20200610_1000.fits')
     
     if wavelength is None: wavelength = wavelength_c
-    print('Propagating wavelength {:.3f}.'.format(wavelength.to(u.nm)))
+    if not quiet: print('Propagating wavelength {:.3f}.'.format(wavelength.to(u.nm)))
     
     pupil = poppy.FITSOpticalElement('Roman Pupil', pupil_fname, planetype=PlaneType.pupil)
     SPM = poppy.FITSOpticalElement('SPM', spm_fname, planetype=PlaneType.pupil)
@@ -74,13 +74,32 @@ def run_single(mode='SPC730',
     else: FPM = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='FPM Plane (No Optic)')   
     LS = poppy.FITSOpticalElement('Lyot Stop', lyotstop_fname, planetype=PlaneType.pupil)
     
-    if dm1 is None: dm1 = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='DM1 Plane (No Optic)')
+    Nact = 48
+    dm_diam = 46.3*u.mm
+    act_spacing = 0.9906*u.mm
+    dmdir = cgi_dir/'dm-acts'
+    
+    if dm1 is None: DM1 = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='DM1 Plane (No Optic)')
     elif isinstance(dm1,str): 
-        dm1 = poppy.FITSOpticalElement('DM1', opd=str(opticsdir/dm1), opdunits='meters', planetype=PlaneType.intermediate)
-
-    if dm2 is None: dm2 = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='DM2 Plane (No Optic)')
+        DM1 = poppy.FITSOpticalElement('DM1', opd=str(dmdir/dm1), opdunits='meters', planetype=PlaneType.intermediate)
+        DM1.opd = 2*DM1.opd
+    elif isinstance(dm1, np.ndarray):
+        DM1 = poppy.ContinuousDeformableMirror(dm_shape=(Nact,Nact), name='DM1', 
+                                               actuator_spacing=act_spacing, radius=dm_diam/2,
+                                               influence_func=str(dmdir/'proper_inf_func.fits'))
+        DM1.set_surface(dm1)
+    elif isinstance(dm1, poppy.ContinuousDeformableMirror): DM1 = dm1
+        
+    if dm2 is None: DM2 = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='DM2 Plane (No Optic)')
     elif isinstance(dm2, str):
-        dm2 = poppy.FITSOpticalElement('DM2', opd=str(opticsdir/dm2), opdunits='meters', planetype=PlaneType.intermediate)
+        DM2 = poppy.FITSOpticalElement('DM2', opd=str(dmdir/dm2), opdunits='meters', planetype=PlaneType.intermediate)
+        DM2.opd = 2*dm2.opd
+    elif isinstance(dm2, np.ndarray):
+        DM2 = poppy.ContinuousDeformableMirror(dm_shape=(Nact,Nact), name='DM1', 
+                                               actuator_spacing=act_spacing, radius=dm_diam/2,
+                                               influence_func=str(dmdir/'proper_inf_func.fits'))
+        DM2.set_surface(dm2)
+    elif isinstance(dm2, poppy.ContinuousDeformableMirror): DM2 = dm2
     
     if display_mode:
         misc.myimshow(pupil.amplitude, 'Roman Pupil', pxscl=pupil.pixelscale)
@@ -94,7 +113,8 @@ def run_single(mode='SPC730',
     
     # this section defines various optic focal lengths, diameters, and distances between optics.
     fl_pri = 2.838279206904720*u.m
-    sm_despace_m = 0*u.m # despacing of the secondary mirror
+#     fl_pri = 2.838279325*u.m
+    sm_despace_m = 0*u.m
     d_pri_sec = 2.285150508110035*u.m + sm_despace_m
     fl_sec = -0.654200796568004*u.m
     diam_sec = 0.58166*u.m
@@ -143,7 +163,7 @@ def run_single(mode='SPC730',
     fpm_thickness = 0.006363747896388863*u.m    # account for FPM thickness (inclination included)
     fpm_index = utils.glass_index('SILICA', wavelength.value, cgi_dir)
     d_fpm_oap6 = fpm_thickness / fpm_index + 0.543766629917668*u.m     # from front of FPM
-    fl_oap6 = d_fpm_oap6 #### ????????????????????????????????????????????????????????????????????????????????????
+    fl_oap6 = d_fpm_oap6
     diam_oap6 = 0.054*u.m
     d_oap6_lyotstop = 0.687476361491529*u.m
     d_oap6_exitpupil = d_oap6_lyotstop - 6e-3*u.m
@@ -163,6 +183,8 @@ def run_single(mode='SPC730',
     d_filter_lens = filter_thickness / filter_index + 0.210581269256657095*u.m  # from front of filter
     diam_lens = 0.0104*u.m
     d_lens_fold4 = 0.202432155667761*u.m
+#     if use_pupil_lens != 0: d_lens_fold4 = d_lens_fold4 - 0.0002*u.m # from back of pupil imaging lens
+#     elif use_defocus_lens != 0: d_lens_fold4 = d_lens_fold4 + 0.001*u.m # doublet is 1 mm longer than singlet, so make up for it
     diam_fold4 = 0.036*u.m
     d_fold4_image = 0.050000152941020161*u.m
     
@@ -192,17 +214,17 @@ def run_single(mode='SPC730',
     #################### Define optics
     primary = poppy.QuadraticLens(fl_pri, name='Primary')
     secondary = poppy.QuadraticLens(fl_sec, name='Secondary')
-    poma_fold = poppy.CircularAperture(radius=diam_pomafold/2,name="POMA Fold")
+    poma_fold = poppy.CircularAperture(radius=diam_pomafold/2,name="POMA_Fold")
     m3 = poppy.QuadraticLens(fl_m3, name='M3')
     m4 = poppy.QuadraticLens(fl_m4, name='M4')
     m5 = poppy.QuadraticLens(fl_m5, name='M5')
-    tt_fold = poppy.CircularAperture(radius=diam_ttfold/2,name="TT Fold")
+    tt_fold = poppy.CircularAperture(radius=diam_ttfold/2,name="TT_Fold")
     fsm = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='FSM')
     oap1 = poppy.QuadraticLens(fl_oap1, name='OAP1')
     focm = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='FOCM')
     oap2 = poppy.QuadraticLens(fl_oap2, name='OAP2')
     oap3 = poppy.QuadraticLens(fl_oap3, name='OAP3')
-    fold3 = poppy.CircularAperture(radius=diam_fold3/2,name="Fold 3")
+    fold3 = poppy.CircularAperture(radius=diam_fold3/2,name="Fold3")
     oap4 = poppy.QuadraticLens(fl_oap4, name='OAP4')
     oap5 = poppy.QuadraticLens(fl_oap5, name='OAP5')
     oap6 = poppy.QuadraticLens(fl_oap6, name='OAP6')
@@ -211,7 +233,7 @@ def run_single(mode='SPC730',
     filt = poppy.CircularAperture(radius=diam_filter/2, name='Filter')
     lens_1 = poppy.QuadraticLens(fl_1, name='LENS 1') # first lens of the doublet
     lens_2 = poppy.QuadraticLens(fl_2, name='LENS 2')
-    fold4 = poppy.CircularAperture(radius=diam_fold4/2,name="Fold 4")
+    fold4 = poppy.CircularAperture(radius=diam_fold4/2,name="Fold4")
     
     if use_opds:
         primary_opd = poppy.FITSOpticalElement('Primary OPD',
@@ -220,7 +242,7 @@ def run_single(mode='SPC730',
         secondary_opd = poppy.FITSOpticalElement('Secondary OPD',
                                                  opd=str(opddir/'roman_phasec_SECONDARY_synthetic_phase_error_V1.0.fits'),
                                                  opdunits='meters', planetype=PlaneType.intermediate)
-        pomafold_opd = poppy.FITSOpticalElement('POMA-Fold OPD',
+        poma_fold_opd = poppy.FITSOpticalElement('POMA-Fold OPD',
                                              opd=str(opddir/'roman_phasec_POMAFOLD_measured_phase_error_V1.1.fits'), opdunits='meters',
                                              planetype=PlaneType.intermediate)
         m3_opd = poppy.FITSOpticalElement('M3 OPD',
@@ -232,7 +254,7 @@ def run_single(mode='SPC730',
         m5_opd = poppy.FITSOpticalElement('M5 OPD',
                                           opd=str(opddir/'roman_phasec_M5_measured_phase_error_V1.1.fits'), opdunits='meters', 
                                           planetype=PlaneType.intermediate)
-        ttfold_opd = poppy.FITSOpticalElement('TT-Fold OPD',
+        tt_fold_opd = poppy.FITSOpticalElement('TT-Fold OPD',
                                              opd=str(opddir/'roman_phasec_TTFOLD_measured_phase_error_V1.1.fits'), opdunits='meters',
                                              planetype=PlaneType.intermediate)
         fsm_opd = poppy.FITSOpticalElement('FSM OPD',
@@ -262,7 +284,7 @@ def run_single(mode='SPC730',
         oap4_opd = poppy.FITSOpticalElement('OAP4 OPD',
                                             opd=str(opddir/'roman_phasec_OAP4_phase_error_V3.0.fits'), opdunits='meters',
                                             planetype=PlaneType.intermediate)
-        spm_opd = poppy.FITSOpticalElement('SPM OPD',
+        pupil_mask_opd = poppy.FITSOpticalElement('SPM OPD',
                                            opd=str(opddir/'roman_phasec_PUPILMASK_phase_error_V1.0.fits'), opdunits='meters',
                                            planetype=PlaneType.intermediate)
         oap5_opd = poppy.FITSOpticalElement('OAP5 OPD',
@@ -322,10 +344,10 @@ def run_single(mode='SPC730',
     fosys.add_optic(oap2, distance=d_focm_oap2)
     if use_opds: fosys.add_optic(oap2_opd)
         
-    fosys.add_optic(dm1, distance=d_oap2_dm1)
+    fosys.add_optic(DM1, distance=d_oap2_dm1)
     if use_opds: fosys.add_optic(dm1_opd)
         
-    fosys.add_optic(dm2, distance=d_dm1_dm2)
+    fosys.add_optic(DM2, distance=d_dm1_dm2)
     if use_opds: fosys.add_optic(dm2_opd)
         
     fosys.add_optic(oap3, distance=d_dm2_oap3)
@@ -338,7 +360,7 @@ def run_single(mode='SPC730',
     if use_opds: fosys.add_optic(oap4_opd)
         
     fosys.add_optic(SPM, distance=d_oap4_pupilmask)
-    if use_opds: fosys.add_optic(spm_opd)
+    if use_opds: fosys.add_optic(pupil_mask_opd)
         
     fosys.add_optic(oap5, distance=d_pupilmask_oap5)
     if use_opds: fosys.add_optic(oap5_opd)
@@ -367,111 +389,15 @@ def run_single(mode='SPC730',
 
     #################### Calculate the PSF of the FresnelOpticalSystem
     start = time.time()
-    wfin = utils.make_inwave(cgi_dir, diam, wavelength_c, wavelength, npix, oversample, offsets, polaxis, display_inwave) 
+    wfin = utils.make_inwave(cgi_dir, diam, wavelength_c, wavelength, npix, oversample, offsets, polaxis)
     
-    if return_intermediates: 
-        psf_hdu, wfs = fosys.calc_psf(wavelength=wavelength, inwave=wfin,
-                                      display_intermediates=display_intermediates, 
-                                      return_intermediates=return_intermediates)
-    else:
-        psf_hdu, wfs = fosys.calc_psf(wavelength=wavelength, inwave=wfin,
-                                 display_intermediates=display_intermediates, 
-                                 return_intermediates=return_intermediates,
-                                 return_final=True)
-    psf_wf = wfs[-1].wavefront
-    psf_pixelscale = wfs[-1].pixelscale
-    
-    if psf_pixelscale_lamD is not None and npsf is not None:
-        print('Resampling PSF wavefront to a pixelscale of {:.3f} lam/D.'.format(psf_pixelscale_lamD))
-        print('Current PSF pixelscale is {:.3e}.'.format(psf_pixelscale))
-        mag = (1/oversample) / psf_pixelscale_lamD * (wavelength/wavelength_c).value
-        psf_pixelscale = psf_pixelscale / mag
-        psf_wf = proper.prop_magnify( psf_wf, mag, npsf, AMP_CONSERVE=True )
-        print('Resampled PSF pixelscale is {:.3e}.'.format(psf_pixelscale))
+    psf_hdu, wfs = fosys.calc_psf(wavelength=wavelength, inwave=wfin,
+                                  display_intermediates=display_intermediates, 
+                                  return_intermediates=return_intermediates, return_final=True)
         
-        wfs[-1].wavefront = psf_wf
-        wfs[-1].pixelscale = psf_pixelscale
-        psf_hdu[0].data = wfs[-1].intensity
-        psf_hdu[0].header['PIXELSCL'] = psf_pixelscale.value
-    else:
-        print('User-requested PSF pixelscale not provided so no resampling performed.')
-        
-    print('PSF calculated in {:.2f}s'.format(time.time()-start))
+    if not quiet: print('PSF calculated in {:.2f}s'.format(time.time()-start))
 
     return psf_hdu, wfs
-    
-    
-def run_hlc(params):
-    
-    mode, wavelength, npix, oversample, npsf, psf_pixelscale, offsets, dm1, dm2, use_fpm, use_opds, use_pupil_defocus, polaxis, cgi_dir, return_intermediates = params
-    
-    psf, wfs = run_single(mode=mode,
-                           wavelength=wavelength,
-                           npix=npix,
-                           oversample=oversample,
-                           npsf=npsf, 
-                           psf_pixelscale=psf_pixelscale,
-                           offsets=offsets,
-                           dm1=dm1, 
-                           dm2=dm2,
-                           use_fpm=use_fpm,
-                           use_opds=use_opds,
-                           use_pupil_defocus=use_pupil_defocus,
-                           polaxis=polaxis,
-                           cgi_dir=cgi_dir,
-                           display_mode=False,
-                           display_inwave=False,
-                           display_intermediates=False,
-                           return_intermediates=return_intermediates)
-    return psf, wfs
-    
-def run_multi(mode='SPC730',
-              wavelengths=None,
-                npix=1000,
-                oversample=2.048,
-              npsf=64,
-              psf_pixelscale=13*u.micron/u.pixel,
-                offsets=(0,0),
-                dm1=None,
-                dm2=None,
-                use_fpm=True,
-                use_opds=False,
-                use_pupil_defocus=False,
-                polaxis=0,
-                cgi_dir = None,
-                return_intermediates = False):
-    if wavelengths is None:
-        if mode=='SPC730': wavelengths = 730e-9*u.m
-        elif mode=='SPC825': wavelengths = 825e-9*u.m
-        
-    params = []
-    if isinstance(wavelengths, np.ndarray) and wavelengths.ndim==1:
-        for i in range(len(wavelengths)):
-            params.append((mode, wavelengths[i], npix, oversample, npsf, psf_pixelscale,
-                           offsets, dm1, dm2, use_fpm, use_opds, use_pupil_defocus, polaxis, 
-                           cgi_dir, return_intermediates))
-    else: 
-        params.append((mode, wavelengths, npix, oversample, npsf, psf_pixelscale,
-                       offsets, dm1, dm2, use_fpm, use_opds, use_pupil_defocus, polaxis, 
-                       cgi_dir, return_intermediates))
-
-    ncpus = mp.cpu_count()
-    pool = mp.Pool(ncpus)
-    results = pool.map(run_spc, params)
-    pool.close()
-    pool.join()
-
-    psfs = []
-    wfs = []
-    if wavelengths.ndim==1:
-        for i in range(len(wavelengths)): 
-            psfs.append(results[i][0][0])
-            wfs.append(results[i][1])
-    else:
-        psfs.append(results[0][0][0])
-        wfs.append(results[0][1])
-    
-    return psfs, wfs
             
             
        

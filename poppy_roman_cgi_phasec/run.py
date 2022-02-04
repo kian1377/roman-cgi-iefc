@@ -3,11 +3,12 @@ import numpy as np
 import astropy.units as u
 
 from .import hlc
+from .import spc
 
 def run_hlc(params):
     
     mode, wavelength, npix, oversample, npsf, psf_pixelscale, offsets, dm1, dm2, use_fpm, use_fieldstop, use_opds, use_pupil_defocus, polaxis, cgi_dir, return_intermediates, quiet = params
-#     print('run_hlc')
+    
     psf, wfs = hlc.run(mode=mode,
                            wavelength=wavelength,
                            npix=npix,
@@ -28,7 +29,31 @@ def run_hlc(params):
                            return_intermediates=return_intermediates,
                          quiet=quiet)
     return psf, wfs
+
+def run_spc(params):
     
+    mode, wavelength, npix, oversample, npsf, psf_pixelscale, offsets, dm1, dm2, use_fpm, use_fieldstop, use_opds, use_pupil_defocus, polaxis, cgi_dir, return_intermediates, quiet = params
+    
+    psf, wfs = spc.run(mode=mode,
+                           wavelength=wavelength,
+                           npix=npix,
+                           oversample=oversample,
+                           npsf=npsf, 
+                           psf_pixelscale=psf_pixelscale,
+                           offsets=offsets,
+                           dm1=dm1, 
+                           dm2=dm2,
+                           use_fpm=use_fpm,
+                           use_opds=use_opds,
+                           use_pupil_defocus=use_pupil_defocus,
+                           polaxis=polaxis,
+                           cgi_dir=cgi_dir,
+                           display_mode=False,
+                           display_intermediates=False,
+                           return_intermediates=return_intermediates,
+                         quiet=quiet)
+    return psf, wfs
+
 def run_multi(ncpus=None,
               mode='HLC575',
               wavelength=None,
@@ -69,12 +94,15 @@ def run_multi(ncpus=None,
         else: print('The length of the dm1 list must match the length of the dm2 list.')
     else: 
         params.append((mode, wavelength, npix, oversample, npsf, psf_pixelscale,
-                       offsets, dm1, dm2, 
-                       use_fpm, use_fieldstop, use_opds, use_pupil_defocus, polaxis, 
+                       offsets, dm1, dm2, use_fpm, use_fieldstop, use_opds, use_pupil_defocus, polaxis, 
                        cgi_dir, return_intermediates, quiet))
     
     if ncpus is None: ncpus = mp.cpu_count()
-    with mp.get_context("spawn").Pool(ncpus) as pool: results = pool.map(run_hlc, params)
+    
+    if mode=='HLC575': 
+        with mp.get_context("spawn").Pool(ncpus) as pool: results = pool.map(run_hlc, params)
+    else: 
+        with mp.get_context("spawn").Pool(ncpus) as pool: results = pool.map(run_spc, params)
     pool.close()
     pool.join()
     

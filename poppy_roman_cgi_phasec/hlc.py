@@ -9,10 +9,6 @@ import numpy as np
 import scipy
 from scipy.interpolate import interp1d
 
-# from multiprocessing import set_start_method
-# set_start_method("spawn")
-import multiprocessing as mp
-
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from IPython.display import display, clear_output
@@ -26,7 +22,6 @@ from importlib import reload
 
 from .import utils
 from .import polmap
-# from .import misc
 import misc
 
 def run(mode='HLC575',
