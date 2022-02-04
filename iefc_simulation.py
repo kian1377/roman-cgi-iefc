@@ -128,13 +128,15 @@ def create_fourier_modes(xfp, mask, Nact=48, use_both=True, circular_mask=True):
     else:
         M = np.array([np.sin(2 * np.pi * (fi[0] * x + fi[1] * y)) for fi in zip(fx, fy)])
         
-    M /= np.std(M, axis=1, keepdims=True)
+#     M /= np.std(M, axis=1, keepdims=True)
     
     if circular_mask: 
         circ = np.ones((Nact,Nact))
         r = np.sqrt(x.reshape((Nact,Nact))**2 + y.reshape((Nact,Nact))**2)
         circ[r>(Nact)/2] = 0
         M[:] *= circ.flatten()
+        
+    M /= np.std(M, axis=1, keepdims=True)
         
     return M, fx, fy
 
@@ -183,11 +185,32 @@ def construct_control_matrix(response_matrix, weight_map, rcond=1e-2, pca_modes=
     else:
         return control_matrix
 
-
 def create_rect_patch(rect_params):
     rect_patch = Rectangle((rect_params['x0']-rect_params['w']/2, rect_params['y0']-rect_params['h']/2), 
                            rect_params['w'], rect_params['h'], color='c', fill=False)
     return rect_patch
+
+
+def create_dshaped_focal_plane_mask(x, y, params):
+    inner_radius, outer_radius, edge_position, direction = (params['inner_radius'], params['outer_radius'], 
+                                                            params['edge_position'], params['direction'])
+    r = np.hypot(x, y)
+    mask = (r < outer_radius) * (r > inner_radius)
+    if direction == '+x': mask *= (x > edge_position)
+    elif direction == '-x': mask *= (x < -edge_position)
+    elif direction == '+y': mask *= (y > edge_position)
+    elif direction == '-y': mask *= (y < -edge_position)
+    
+    return mask
+
+def create_box_focal_plane_mask(x, y, params):
+    x0, y0, width, height = (params['x0'], params['y0'], params['w'], params['h'])
+    mask = ( abs(x - x0) < width/2 ) * ( abs(y - y0) < height/2 )
+    return mask > 0
+
+
+
+
 
 
 
