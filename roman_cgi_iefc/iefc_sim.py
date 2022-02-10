@@ -7,7 +7,7 @@ from datetime import date
 import astropy.io.fits as pyfits
 from scipy.sparse import linalg as sLA
 
-import cgi
+from .import cgi
 import misc
 
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):

@@ -7,11 +7,11 @@ import time
 from datetime import date
 from pathlib import Path
 
-import poppy
-from poppy_roman_cgi_phasec import hlc, spc, run
-
 import proper
 import roman_phasec_proper as phasec
+
+import poppy
+from .poppy_roman_cgi_phasec import hlc, spc, run
 
 import misc
 
