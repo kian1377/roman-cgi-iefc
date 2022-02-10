@@ -107,16 +107,18 @@ class CGI_POPPY():
         for i in range(len(dm1_commands)): 
             dm1_commands[i] += self.DM1.surface
             dm2_commands[i] += self.DM2.surface
-#             misc.myimshow(dm1_commands[i])
             
-        psfs, wfs = run.run_multi(ncpus=16, mode=self.cgi_mode, wavelength=self.wavelength, 
-                                  npix=self.npix, oversample=self.oversample, 
-                                  npsf=self.npsf, psf_pixelscale=self.psf_pixelscale,
-                                 dm1=dm1_commands, dm2=dm2_commands,
-                                 use_opds=self.use_opds, polaxis=self.polaxis,
-                                 use_pupil_defocus=self.use_pupil_defocus, use_fieldstop=self.use_fieldstop,
-                                 cgi_dir=self.cgi_dir, quiet=self.quiet)
-        return wfs
+        psf_hdus, wfs = run.run_multi(ncpus=16, mode=self.cgi_mode, wavelength=self.wavelength, 
+                                      npix=self.npix, oversample=self.oversample, 
+                                      npsf=self.npsf, psf_pixelscale=self.psf_pixelscale,
+                                      dm1=dm1_commands, dm2=dm2_commands,
+                                      use_opds=self.use_opds, polaxis=self.polaxis,
+                                      use_pupil_defocus=self.use_pupil_defocus, use_fieldstop=self.use_fieldstop,
+                                      cgi_dir=self.cgi_dir, quiet=self.quiet)
+        psfs = []
+        for i,wf in enumerate(wfs):
+            psfs.append(wf.intensity)
+        return psfs
     
 class CGI_PROPER():
 

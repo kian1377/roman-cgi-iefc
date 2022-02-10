@@ -8,6 +8,7 @@ import astropy.io.fits as pyfits
 from scipy.sparse import linalg as sLA
 
 import cgi
+import misc
 
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
 def take_measurement(sysi, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
@@ -22,15 +23,7 @@ def take_measurement(sysi, probe_cube, probe_amplitude, return_all=False, pca_mo
     psfs = sysi.calc_psfs(dm1_commands, dm2_commands)
     images=[]
     for i,psf in enumerate(psfs): images.append(psf.flatten())
-#     if isinstance(sysi, cgi.CGI_POPPY):
-#         wfs = sysi.calc_psfs(dm1_commands, dm2_commands)
-#         images=[]
-#         for i,wf in enumerate(wfs): images.append(wf.intensity.flatten())
-#     elif isinstance(sysi, cgi.CGI_PROPER):
-#         psfs = sysi.calc_psfs(dm1_commands, dm2_commands)
-#         images=[]
-#         for i,psf in enumerate(psfs): images.append(wf.intensity.flatten())
-            
+        
     images = np.array(images)
     differential_images = differential_operator.dot(images)
     
