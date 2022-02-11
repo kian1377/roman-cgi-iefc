@@ -172,6 +172,11 @@ def create_rect_patch(rect_params):
                            rect_params['w'], rect_params['h'], color='c', fill=False)
     return rect_patch
 
+def create_circ_patches(circ_params):
+    circ_patches = [Circle( (0,0), circ_params['inner_radius'], color='c', fill=False), 
+                  Circle( (0,0), circ_params['outer_radius'], color='c', fill=False)]
+    return circ_patches
+
 
 def create_dshaped_focal_plane_mask(x, y, params):
     inner_radius, outer_radius, edge_position, direction = (params['inner_radius'], params['outer_radius'], 
