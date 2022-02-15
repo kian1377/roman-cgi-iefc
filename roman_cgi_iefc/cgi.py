@@ -137,6 +137,8 @@ class CGI_PROPER():
         if wavelength is None: self.wavelength = self.wavelength_c
         self.npsf = npsf
         self.psf_pixelscale = psf_pixelscale
+        self.psf_pixelscale_lamD = 1/2 * 0.5e-6/self.wavelength_c.value * self.psf_pixelscale.to(u.m/u.pix).value/13e-6
+        
         self.use_pupil_defocus = use_pupil_defocus
         self.use_fieldstop = use_fieldstop
         self.use_opds = use_opds
