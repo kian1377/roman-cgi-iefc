@@ -15,12 +15,14 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
     differential_operator = np.array([ [-1,1,0,0] , [0,0,-1,1] ]) / (2 * probe_amplitude * sysi.texp)
 
     if DM==1:
+        print('\tProbing DM1')
         dm1_commands = [-1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
                         1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
                         -1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact),
                         1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact)]
         dm2_commands = [np.zeros((48,48)), np.zeros((48,48)), np.zeros((48,48)), np.zeros((48,48))]
     elif DM==2:
+        print('\tProbing DM2')
         dm2_commands = [-1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
                         1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
                         -1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact),
@@ -58,7 +60,8 @@ def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibra
             for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
                 # DM1: Set the DM to the correct state
                 sysi.add_dm1(s * calibration_amplitude * calibration_mode)
-                differential_images_1, single_images_1 = take_measurement(sysi, probe_modes, probe_amplitude, return_all=True)
+                differential_images_1, single_images_1 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1,
+                                                                          return_all=True)
                 
                 images_1.append(single_images_1)
                 slope1 += s * differential_images_1 / (2 * calibration_amplitude)
@@ -67,7 +70,8 @@ def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibra
                 
                 # DM2: Set the DM to the correct state
                 sysi.add_dm2(s * calibration_amplitude * calibration_mode)
-                differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, return_all=True)
+                differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=2, 
+                                                                          return_all=True)
                 
                 images_2.append(single_images_2)
                 slope2 += s * differential_images_2 / (2 * calibration_amplitude)
