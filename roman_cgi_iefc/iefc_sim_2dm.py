@@ -15,14 +15,12 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
     differential_operator = np.array([ [-1,1,0,0] , [0,0,-1,1] ]) / (2 * probe_amplitude * sysi.texp)
 
     if DM==1:
-        print('\t\tProbing DM1')
         dm1_commands = [-1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
                         1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
                         -1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact),
                         1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact)]
         dm2_commands = [np.zeros((48,48)), np.zeros((48,48)), np.zeros((48,48)), np.zeros((48,48))]
     elif DM==2:
-        print('\t\tProbing DM2')
         dm2_commands = [-1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
                         1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
                         -1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact),
@@ -159,7 +157,6 @@ def single_iteration(sysi, probe_cube, probe_amplitude, control_matrix, pixel_ma
     
     # Choose which pixels we want to control
     measurement_vector = differential_images[:, pixel_mask_dark_hole].ravel()
-    print(differential_images.shape, measurement_vector.shape)
     
 #     differential_images_1 = take_measurement(sysi, probe_cube, probe_amplitude, DM=1) # Take a measurement
 #     measurement_vector_1 = differential_images_1[:, pixel_mask_dark_hole].ravel() # Choose which pixels we want to control
