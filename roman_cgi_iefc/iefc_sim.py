@@ -11,14 +11,21 @@ from .import cgi
 import misc
 
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
-def take_measurement(sysi, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
+def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, pca_modes=None):
     differential_operator = np.array([ [-1,1,0,0] , [0,0,-1,1] ]) / (2 * probe_amplitude * sysi.texp)
 
-    dm1_commands = [-1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
-                    1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
-                    -1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact),
-                    1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact)]
-    dm2_commands = [np.zeros((48,48)), np.zeros((48,48)), np.zeros((48,48)), np.zeros((48,48))]
+    if DM==1:
+        dm1_commands = [-1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
+                        1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
+                        -1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact),
+                        1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact)]
+        dm2_commands = [np.zeros((48,48)), np.zeros((48,48)), np.zeros((48,48)), np.zeros((48,48))]
+    elif DM==2:
+        dm2_commands = [-1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
+                        1.0*probe_amplitude*probe_cube[0].reshape(sysi.Nact,sysi.Nact),
+                        -1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact),
+                        1.0*probe_amplitude*probe_cube[1].reshape(sysi.Nact,sysi.Nact)]
+        dm1_commands = [np.zeros((48,48)), np.zeros((48,48)), np.zeros((48,48)), np.zeros((48,48))]
     
     psfs = sysi.calc_psfs(dm1_commands, dm2_commands)
     images=[]
@@ -35,7 +42,7 @@ def take_measurement(sysi, probe_cube, probe_amplitude, return_all=False, pca_mo
     else:
         return differential_images
     
-def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibration_modes, start_mode=0):
+def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibration_modes, DM=1, start_mode=0):
     print('Calibrating I-EFC...')
     slopes = [] # this becomes the response cube
     images = [] # this becomes the calibration cube
@@ -46,15 +53,26 @@ def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibra
             slope = 0
             # We need a + and - probe to estimate the jacobian
             for s in [-1, 1]:
-                # Set the DM to the correct state
-                sysi.add_dm1(s * calibration_amplitude * calibration_mode)
-                differential_images, single_images = take_measurement(sysi, probe_modes, probe_amplitude, return_all=True)
-                
-                slope += s * differential_images / (2 * calibration_amplitude)
-                images.append(single_images)
-                
-                # Remove the calibrated mode
-                sysi.add_dm1(-s * calibration_amplitude * calibration_mode)
+                if DM==1:
+                    # Set the DM to the correct state
+                    sysi.add_dm1(s * calibration_amplitude * calibration_mode)
+                    differential_images, single_images = take_measurement(sysi, probe_modes, probe_amplitude, DM=1, return_all=True)
+
+                    slope += s * differential_images / (2 * calibration_amplitude)
+                    images.append(single_images)
+
+                    # Remove the calibrated mode
+                    sysi.add_dm1(-s * calibration_amplitude * calibration_mode)
+                elif DM==2:
+                    # Set the DM to the correct state
+                    sysi.add_dm2(s * calibration_amplitude * calibration_mode)
+                    differential_images, single_images = take_measurement(sysi, probe_modes, probe_amplitude, DM=2, return_all=True)
+
+                    slope += s * differential_images / (2 * calibration_amplitude)
+                    images.append(single_images)
+
+                    # Remove the calibrated mode
+                    sysi.add_dm2(-s * calibration_amplitude * calibration_mode)
             print("\tCalibrated mode {:d} / {:d} in {:.3f}s".format(ci+1+start_mode, calibration_modes.shape[0], 
                                                                     time.time()-start))
             slopes.append(slope)
