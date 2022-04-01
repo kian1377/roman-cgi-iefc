@@ -1,4 +1,8 @@
 import numpy as np
+try:
+    import cupy as cp
+except:
+    pass
 import proper 
 import matplotlib.pyplot as plt
 plt.rcParams['image.origin']='lower'
@@ -20,6 +24,9 @@ def myimshow(arr, title=None,
              patches=None,
              figsize=(4,4), dpi=125, display_fig=True, return_fig=False):
     fig,ax = plt.subplots(nrows=1, ncols=1, figsize=figsize, dpi=dpi)
+    
+    if cp and isinstance(arr, cp.ndarray):
+        arr = arr.get()
     
     if npix is not None:
         arr = pad_or_crop(arr, npix)
@@ -86,6 +93,11 @@ def myimshow2(arr1, arr2,
               return_fig=False, 
               figsize=(10,4), dpi=125, wspace=0.2):
     fig,ax = plt.subplots(nrows=1, ncols=2, figsize=figsize, dpi=dpi)
+    
+    if cp and isinstance(arr1, cp.ndarray):
+        arr1 = arr1.get()
+    if cp and isinstance(arr2, cp.ndarray):
+        arr2 = arr2.get()
     
     if npix is not None:
         arr1 = pad_or_crop(arr1, npix)
