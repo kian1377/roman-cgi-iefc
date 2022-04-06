@@ -6,9 +6,11 @@ if poppy.accel_math._USE_CUPY:
 else:
     from scipy.sparse import linalg as sLA
 
+from scipy import interpolate
 import time
 from astropy.io import fits
 from matplotlib.patches import Circle, Rectangle
+import pickle
 
 from .poppy_roman_cgi_phasec import cgi
 import misc

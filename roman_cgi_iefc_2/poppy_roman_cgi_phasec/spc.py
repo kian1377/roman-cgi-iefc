@@ -4,7 +4,8 @@ from poppy.poppy_core import PlaneType
 import numpy as np
 import astropy.units as u
 
-from .import cgi
+from . import cgi
+# from . import spc_opd_maps as opds
 
 def run(SPC):
     # Define various optic focal lengths, diameters, and distances between optics.
@@ -128,7 +129,8 @@ def run(SPC):
     
     if SPC.use_opds:
         from . import spc_opd_maps as opds
-        
+    
+    
     # Create the optical system
     fosys = poppy.FresnelOpticalSystem(name=SPC.cgi_mode, pupil_diameter=SPC.D, 
                                        npix=SPC.npix, beam_ratio=1/SPC.oversample, verbose=True)

@@ -4,6 +4,7 @@ import astropy.units as u
 import time
 from pathlib import Path
 from scipy.interpolate import interp1d
+import ray
 
 import poppy
 from poppy.poppy_core import PlaneType
@@ -13,12 +14,10 @@ if poppy.accel_math._USE_CUPY:
 import proper
 import roman_phasec_proper as phasec    
 
-from . import hlc, spc, polmap
-
-import ray
-
 cgi_dir = Path('/groups/douglase/kians-data-files/roman-cgi-phasec-data')
 dm_dir = Path('/groups/douglase/kians-data-files/roman-cgi-phasec-data/dm-acts')
+
+from . import hlc, spc, polmap
 
 class CGI_POPPY():
 
@@ -243,7 +242,7 @@ class CGI_POPPY():
         else: 
             psf, wfs = spc.run(self)
         
-        if not self.quiet: print('PSF calculated in {:.2f}s'.format(time.time()-start))
+        if not self.quiet: print('PSF calculated in {:.3f}s'.format(time.time()-start))
         return wfs
     _calc_psf = ray.remote(calc_psf)
     

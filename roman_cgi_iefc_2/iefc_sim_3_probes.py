@@ -16,14 +16,18 @@ import misc
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
 def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, pca_modes=None):
     if poppy.accel_math._USE_CUPY:
-        differential_operator = cp.array([ [-1,1,0,0] , [0,0,-1,1] ]) / (2 * probe_amplitude * sysi.texp)
+        differential_operator = cp.array([[-1,1,0,0,0,0],
+                                          [0,0,-1,1,0,0],
+                                          [0,0,0,0,-1,1]]) / (2 * probe_amplitude * sysi.texp)
     else:
         differential_operator = np.array([ [-1,1,0,0] , [0,0,-1,1] ]) / (2 * probe_amplitude * sysi.texp)
 
     if DM==1:
         dm1_commands = [-1.0*probe_amplitude*probe_cube[0], 1.0*probe_amplitude*probe_cube[0],
-                        -1.0*probe_amplitude*probe_cube[1], 1.0*probe_amplitude*probe_cube[1]]
+                        -1.0*probe_amplitude*probe_cube[1], 1.0*probe_amplitude*probe_cube[1],
+                        -1.0*probe_amplitude*probe_cube[2], 1.0*probe_amplitude*probe_cube[2]]
         dm2_commands = [np.zeros((sysi.Nact**2)), np.zeros((sysi.Nact**2)), 
+                        np.zeros((sysi.Nact**2)), np.zeros((sysi.Nact**2)),
                         np.zeros((sysi.Nact**2)), np.zeros((sysi.Nact**2))]
     elif DM==2:
         dm2_commands = [-1.0*probe_amplitude*probe_cube[0], 1.0*probe_amplitude*probe_cube[0],
@@ -65,27 +69,20 @@ def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibra
             # We need a + and - probe to estimate the jacobian
             for s in [-1, 1]:
                 if DM==1:
-                    # Set the DM to the correct state
-                    sysi.add_dm1(s * calibration_amplitude * calibration_mode)
-                    differential_images, single_images = take_measurement(sysi, probe_modes, probe_amplitude, 
-                                                                          DM=1, return_all=True)
-
-                    slope += s * differential_images / (2 * calibration_amplitude)
-                    images.append(single_images)
-
-                    # Remove the calibrated mode
-                    sysi.add_dm1(-s * calibration_amplitude * calibration_mode)
+                    add_dm = sysi.add_dm1
                 elif DM==2:
-                    # Set the DM to the correct state
-                    sysi.add_dm2(s * calibration_amplitude * calibration_mode)
-                    differential_images, single_images = take_measurement(sysi, probe_modes, probe_amplitude, 
-                                                                          DM=2, return_all=True)
+                    add_dm = sysi.add_dm2
+                    
+                # Set the DM to the correct state
+                add_dm(s * calibration_amplitude * calibration_mode)
+                differential_images, single_images = take_measurement(sysi, probe_modes, probe_amplitude, 
+                                                                      DM=1, return_all=True)
 
-                    slope += s * differential_images / (2 * calibration_amplitude)
-                    images.append(single_images)
+                slope += s * differential_images / (2 * calibration_amplitude)
+                images.append(single_images)
 
-                    # Remove the calibrated mode
-                    sysi.add_dm2(-s * calibration_amplitude * calibration_mode)
+                # Remove the calibrated mode
+                add_dm(-s * calibration_amplitude * calibration_mode)
             print("\tCalibrated mode {:d} / {:d} in {:.3f}s".format(ci+1+start_mode, calibration_modes.shape[0], 
                                                                     time.time()-start))
             slopes.append(slope)
@@ -126,9 +123,9 @@ def construct_control_matrix(response_matrix, weight_map, rcond=1e-2, WLS=True, 
     if WLS:  
         print('Using Weighted Least Squares ')
         if poppy.accel_math._USE_CUPY:
-            Wmatrix = cp.diag(cp.concatenate((weight_map[weight_mask], weight_map[weight_mask])))
+            Wmatrix = cp.diag(cp.concatenate((weight_map[weight_mask], weight_map[weight_mask], weight_map[weight_mask])))
         else:
-            Wmatrix = np.diag(np.concatenate((weight_map[weight_mask], weight_map[weight_mask])))
+            Wmatrix = np.diag(np.concatenate((weight_map[weight_mask], weight_map[weight_mask], weight_map[weight_mask])))
         control_matrix = iefc_utils.WeightedLeastSquares(masked_matrix[:,:nmodes], Wmatrix, rcond=rcond)
     else: 
         print('Using Tikhonov Inverse')

@@ -8,8 +8,9 @@ import numpy as np
 import astropy.units as u
 import copy
 
-from .import cgi
-    
+from . import cgi
+# from . import hlc_opd_maps as opds
+
 def run(HLC):    
     # Define various optic focal lengths, diameters, and distances between optics.
     fl_pri = 2.838279206904720*u.m
@@ -129,14 +130,14 @@ def run(HLC):
     lens_1 = poppy.QuadraticLens(fl_1, name='LENS 1') # first lens of the doublet
     lens_2 = poppy.QuadraticLens(fl_2, name='LENS 2')
     fold4 = poppy.CircularAperture(radius=diam_fold4/2,name="Fold4")
-    
-    if HLC.use_opds:
-        from . import hlc_opd_maps as opds
         
     # Create the first part of the optical system
     fosys1 = poppy.FresnelOpticalSystem(name='HLC Part 1', pupil_diameter=HLC.D, 
                                         npix=HLC.npix, beam_ratio=1/HLC.oversample, verbose=True)
-
+    
+    if HLC.use_opds: 
+        from . import hlc_opd_maps as opds
+    
     fosys1.add_optic(HLC.PUPIL)
     fosys1.add_optic(primary)
     if HLC.use_opds: fosys1.add_optic(opds.primary_opd)
