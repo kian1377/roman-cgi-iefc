@@ -8,6 +8,7 @@ else:
 
 import time
 from astropy.io import fits
+import copy
 
 from . import iefc_utils
 from .poppy_roman_cgi_phasec import cgi

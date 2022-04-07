@@ -17,6 +17,9 @@ import roman_phasec_proper as phasec
 cgi_dir = Path('/groups/douglase/kians-data-files/roman-cgi-phasec-data')
 dm_dir = Path('/groups/douglase/kians-data-files/roman-cgi-phasec-data/dm-acts')
 
+# cgi_dir = Path('C:/Users/Kian/Documents/data-files/roman-cgi-phasec-data')
+# dm_dir = Path('C:/Users/Kian/Documents/data-files/roman-cgi-phasec-data/dm-acts')
+
 from . import hlc, spc, polmap
 
 class CGI_POPPY():
@@ -74,8 +77,6 @@ class CGI_POPPY():
         
         self.ngpus = ngpus
         
-        
-    
     def init_mode_optics(self):
         self.FPM_plane = poppy.ScalarTransmission('FPM Plane (No Optic)', planetype=PlaneType.intermediate) # placeholder
         
@@ -130,6 +131,7 @@ class CGI_POPPY():
                 self.fieldstop = poppy.CircularAperture(radius=radius, name='HLC Field Stop')
             else: 
                 self.fieldstop = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='Field Stop Plane (No Optic)')
+                
         elif self.cgi_mode=='SPC730': 
             self.optics_dir = cgi_dir/'spc-spec'            
             self.PUPIL = poppy.FITSOpticalElement('Roman Pupil', 
@@ -147,6 +149,7 @@ class CGI_POPPY():
             else: 
                 self.FPM = poppy.ScalarTransmission(name='FPM Plane (No Optic)', planetype=PlaneType.intermediate) 
             self.fieldstop = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='Field Stop Plane (No Optic)')
+            
         elif self.cgi_mode=='SPC825':
             self.optics_dir = cgi_dir/'spc-wide'            
             self.PUPIL = poppy.FITSOpticalElement('Roman Pupil', 
