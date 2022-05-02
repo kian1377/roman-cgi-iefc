@@ -274,6 +274,8 @@ class CGI_POPPY():
                     else: 
                         ref = self._calc_psf.remote(self)
                     pending_results.append(ref)
+                self.add_dm1(-dm_commands[j][0])
+                self.add_dm2(-dm_commands[j][1])
         wfs = ray.get(pending_results)
         if not self.quiet: print('All PSFs calculated in {:.3f}s'.format(time.time()-start))
         

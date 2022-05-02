@@ -25,7 +25,7 @@ def WeightedLeastSquares(A, W, rcond=1e-15):
 
 def TikhonovInverse(A, rcond=1e-15):
     if poppy.accel_math._USE_CUPY:
-        U, s, Vt = np.linalg.svd(A, full_matrices=False)
+        U, s, Vt = cp.linalg.svd(A, full_matrices=False)
     else:
         U, s, Vt = np.linalg.svd(A, full_matrices=False)
     s_inv = s/(s**2 + (rcond * s.max())**2)
@@ -132,7 +132,7 @@ def save_pickle(fpath, data, quiet=False):
     out = open(str(fpath), 'wb')
     pickle.dump(data, out)
     out.close()
-    if not quiet: print('Saved wavefronts to: ', str(fpath))
+    if not quiet: print('Saved data to: ', str(fpath))
 
 def load_pickle(fpath):
     infile = open(str(fpath),'rb')

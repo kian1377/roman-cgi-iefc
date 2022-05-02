@@ -32,12 +32,14 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
                         np.zeros((sysi.Nact**2)), np.zeros((sysi.Nact**2))]
     elif DM==2:
         dm2_commands = [-1.0*probe_amplitude*probe_cube[0], 1.0*probe_amplitude*probe_cube[0],
-                        -1.0*probe_amplitude*probe_cube[1], 1.0*probe_amplitude*probe_cube[1]]
+                        -1.0*probe_amplitude*probe_cube[1], 1.0*probe_amplitude*probe_cube[1],
+                        -1.0*probe_amplitude*probe_cube[2], 1.0*probe_amplitude*probe_cube[2]]
         dm1_commands = [np.zeros((sysi.Nact**2)), np.zeros((sysi.Nact**2)), 
+                        np.zeros((sysi.Nact**2)), np.zeros((sysi.Nact**2)),
                         np.zeros((sysi.Nact**2)), np.zeros((sysi.Nact**2))]
     dm_commands = []
     for i in range(len(dm1_commands)):
-        dm_commands.append(np.vstack((dm1_commands[i], dm2_commands[i])))
+        dm_commands.append( np.vstack((dm1_commands[i], dm2_commands[i])) )
     wfs = sysi.calc_psfs(dm_commands=dm_commands)
     
     images=[]
