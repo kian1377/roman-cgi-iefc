@@ -14,7 +14,7 @@ if poppy.accel_math._USE_CUPY:
 
 import misc
 
-def build_jacobian(sysi, epsilon, dark_zone):
+def build_jacobian(sysi, epsilon, dark_mask):
     print('Building Jacobian.')
     responses = []
     amps = np.linspace(-epsilon, epsilon, 2) # for generating a negative and positive actuator poke
@@ -32,11 +32,11 @@ def build_jacobian(sysi, epsilon, dark_zone):
         
         wfs = sysi.calc_psfs(dm_commands=dm_commands)
         
-        response = (amps[0]*wfs[0][-1].wavefront + amps[1]*wfs[1][-1].wavefront).flatten()
+        response = (amps[0]*wfs[0][-1].wavefront + amps[1]*wfs[1][-1].wavefront)
         response /= np.var(amps)
-        response = response[dark_zone]
+        response = response.flatten()[dark_mask.flatten()]
         
-        responses.append(np.concatenate((response.real, response.imag)))
+        responses.append(np.concatenate( (response.real, response.imag) ))
     
     if poppy.accel_math._USE_CUPY:
         jacobian = cp.array(responses).T
@@ -46,7 +46,7 @@ def build_jacobian(sysi, epsilon, dark_zone):
     
     return jacobian
 
-def run_efc(sysi, efc_matrix, dark_zone, efc_loop_gain=0.5, iterations=5):
+def run_efc(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5):
     print('Beginning closed-loop EFC simulation.')
     current_actuators = np.zeros((sysi.Nact,sysi.Nact)) 
     
@@ -63,7 +63,7 @@ def run_efc(sysi, efc_matrix, dark_zone, efc_loop_gain=0.5, iterations=5):
         actuators.append(current_actuators)
         wavefronts.append(wfs[-1])
         
-        x = cp.concatenate( (electric_field[~dark_zone.mask].real, electric_field[~dark_zone.mask].imag) )
+        x = cp.concatenate( (electric_field[dark_mask].real, electric_field[dark_mask].imag) )
         y = efc_matrix.dot(x)
         
         current_actuators -= efc_loop_gain * y.reshape(sysi.Nact,sysi.Nact)
