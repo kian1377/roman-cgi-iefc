@@ -26,6 +26,7 @@ class CGI_POPPY():
 
     def __init__(self, cgi_mode='HLC575', wavelength=None, npsf=64, psf_pixelscale=13e-6*u.m/u.pix, psf_pixelscale_lamD=None,
                  offset=(0,0), use_pupil_defocus=True, use_fieldstop=False, use_opds=False, use_fpm=True, polaxis=0, 
+                 use_shot_noise=False, use_read_noise=False,
                  return_intermediates=False, 
                  quiet=True, ngpus=0.5):
         
@@ -67,6 +68,9 @@ class CGI_POPPY():
             self.psf_pixelscale_lamD = 1/2 * 0.5e-6/self.wavelength_c.value * self.psf_pixelscale.to(u.m/u.pix).value/13e-6
         
         self.texp = 1
+        
+        self.use_shot_noise = use_shot_noise
+        self.use_read_noise = use_read_noise
         
         self.init_mode_optics()
         self.init_dms()
