@@ -26,7 +26,6 @@ class CGI_POPPY():
 
     def __init__(self, cgi_mode='HLC575', wavelength=None, npsf=64, psf_pixelscale=13e-6*u.m/u.pix, psf_pixelscale_lamD=None,
                  offset=(0,0), use_pupil_defocus=True, use_fieldstop=False, use_opds=False, use_fpm=True, polaxis=0, 
-                 use_shot_noise=False, use_read_noise=False,
                  return_intermediates=False, 
                  quiet=True, ngpus=0.5):
         
@@ -52,7 +51,6 @@ class CGI_POPPY():
         if wavelength is None: self.wavelength = self.wavelength_c
         
         self.offset = offset
-        self.offset = offset
         self.use_fpm = use_fpm
         self.use_pupil_defocus = use_pupil_defocus
         self.use_fieldstop = use_fieldstop
@@ -67,10 +65,13 @@ class CGI_POPPY():
             self.psf_pixelscale = psf_pixelscale
             self.psf_pixelscale_lamD = 1/2 * 0.5e-6/self.wavelength_c.value * self.psf_pixelscale.to(u.m/u.pix).value/13e-6
         
-        self.texp = 1
+        self.texp = 1*u.s
+        self.peak_photon_flux = 1e8*u.photon/u.s
         
-        self.use_shot_noise = use_shot_noise
-        self.use_read_noise = use_read_noise
+        self.detector_gain = 1*u.electron/u.photon
+        self.read_noise_std = 1.7*u.electron/u.photon
+        self.well_depth = 3e4*u.electron
+        self.dark_rate = 0.015*u.electron/u.pix/u.s  # [e-/pixel/second]
         
         self.init_mode_optics()
         self.init_dms()
@@ -238,7 +239,44 @@ class CGI_POPPY():
         inwave.wavefront *= np.exp(complex(0,1) * np.pi * (xoffset_lam * x + yoffset_lam * y))
 
         self.inwave = inwave
-    
+        
+    def add_noise(self, image):
+        peak_photons = self.peak_photon_flux * self.texp
+        peak_electrons = self.detector_gain * peak_photons
+
+        image_in_electrons = peak_electrons.value * image
+
+        # Add photon shot noise
+        if type(image) is np.ndarray:
+            noisy_image_in_electrons = np.random.poisson(image_in_electrons)
+        else:
+            noisy_image_in_electrons = cp.random.poisson(image_in_electrons)
+
+        # Compute dark current
+        if type(image) is np.ndarray:
+            dark_current = (self.dark_rate * self.texp).value * np.ones_like(image)
+            dark_current = np.random.poisson(dark_current)
+        else:
+            dark_current = (self.dark_rate * self.texp).value * cp.ones_like(image)
+            dark_current = cp.random.poisson(dark_current)
+
+        # Compute Gaussian read noise
+        if type(image) is np.ndarray:
+            read_noise = self.read_noise_std.value * np.random.randn(image.shape[0], image.shape[1])
+        else:
+            read_noise = self.read_noise_std.value * cp.random.randn(image.shape[0], image.shape[1])
+
+        # Convert back from e- to counts and then discretize
+        if type(image) is np.ndarray:
+            image_in_photons = np.round( (noisy_image_in_electrons + dark_current + read_noise) / self.detector_gain.value)
+        else:
+            image_in_photons = cp.round( (noisy_image_in_electrons + dark_current + read_noise) / self.detector_gain.value)
+
+        # Convert back from counts to normalized intensity
+        noisy_image = image_in_photons / self.peak_photon_flux.value
+
+        return noisy_image
+
     # Methods to calculate PSFs in parallel
     def calc_psf(self):
         start = time.time()
@@ -251,6 +289,7 @@ class CGI_POPPY():
         
         if not self.quiet: print('PSF calculated in {:.3f}s'.format(time.time()-start))
         return wfs
+    
     _calc_psf = ray.remote(calc_psf)
     
     def calc_psfs(self, wavelengths=None, dm_commands=None, offsets=None):
@@ -282,6 +321,7 @@ class CGI_POPPY():
                 self.add_dm2(-dm_commands[j][1])
         wfs = ray.get(pending_results)
         if not self.quiet: print('All PSFs calculated in {:.3f}s'.format(time.time()-start))
+        
         
         return wfs
     

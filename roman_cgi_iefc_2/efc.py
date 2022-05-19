@@ -77,10 +77,6 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
         
         if display:
             misc.myimshow2(commands[i], abs(efields[i])**2, lognorm2=True)
-#         print(dm1_command.shape)
-        
-#         del wfs
-#         cp._default_memory_pool.free_all_blocks()
         
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
@@ -123,7 +119,7 @@ def run_efc_pwp(sysi, efc_matrix, jac, probes, dark_mask, efc_loop_gain=0.5, ite
     
     return commands, efields, images
 
-def run_pwp(sysi, probes, jacobian, dark_mask, display=False):
+def run_pwp(sysi, probes, jacobian, dark_mask, use_noise=False, display=False):
     nmask = dark_mask.sum()
     
     dm1_ref = sysi.DM1.surface.flatten().get()
@@ -136,7 +132,7 @@ def run_pwp(sysi, probes, jacobian, dark_mask, display=False):
         dm_commands_m.append(np.vstack((-probes[i] + dm1_ref, dm2_ref)))
 
     sysi.reset_dms()
-    wfs_p = sysi.calc_psfs(dm_commands=dm_commands_p) # calculate images for plus probes
+    wfs_p = sysi.calc_psfs(dm_commands=dm_commands_p) # calculate images for plus probes   
     
     sysi.reset_dms()
     wfs_m = sysi.calc_psfs(dm_commands=dm_commands_m) # calculate images for minus probes
@@ -147,8 +143,12 @@ def run_pwp(sysi, probes, jacobian, dark_mask, display=False):
     Ip = []
     Im = []
     for i in range(len(probes)):
-        Ip.append(wfs_p[i][-1].intensity)
-        Im.append(wfs_m[i][-1].intensity)
+        if use_noise:
+            Ip.append( sysi.add_noise(wfs_p[i][-1].intensity) )
+            Im.append( sysi.add_noise(wfs_m[i][-1].intensity) )
+        else:
+            Ip.append(wfs_p[i][-1].intensity)
+            Im.append(wfs_m[i][-1].intensity)
 
         if display:
             misc.myimshow2(Ip[i], Im[i], lognorm1=True, lognorm2=True)
