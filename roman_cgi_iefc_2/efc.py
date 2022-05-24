@@ -32,7 +32,7 @@ def build_jacobian(sysi, epsilon, dark_mask):
         dm_commands = [np.vstack( (dm1_commands[0], np.zeros((sysi.Nact**2))) ),
                        np.vstack( (dm1_commands[1], np.zeros((sysi.Nact**2))) )]
         
-        wfs = sysi.calc_psfs(dm_commands=dm_commands)
+        wfs = sysi.calc_psfs(ngpus=1/2, dm_commands=dm_commands)
         
         response = (amps[0]*wfs[0][-1].wavefront + amps[1]*wfs[1][-1].wavefront)
         response /= np.var(amps)
@@ -132,10 +132,10 @@ def run_pwp(sysi, probes, jacobian, dark_mask, use_noise=False, display=False):
         dm_commands_m.append(np.vstack((-probes[i] + dm1_ref, dm2_ref)))
 
     sysi.reset_dms()
-    wfs_p = sysi.calc_psfs(dm_commands=dm_commands_p) # calculate images for plus probes   
+    wfs_p = sysi.calc_psfs(ngpus=1/3, dm_commands=dm_commands_p) # calculate images for plus probes   
     
     sysi.reset_dms()
-    wfs_m = sysi.calc_psfs(dm_commands=dm_commands_m) # calculate images for minus probes
+    wfs_m = sysi.calc_psfs(ngpus=1/3, dm_commands=dm_commands_m) # calculate images for minus probes
     
     sysi.set_dm1(dm1_ref) # put DMs back in original state
     sysi.set_dm2(dm2_ref)
@@ -151,8 +151,10 @@ def run_pwp(sysi, probes, jacobian, dark_mask, use_noise=False, display=False):
             Im.append(wfs_m[i][-1].intensity)
 
         if display:
-            misc.myimshow2(Ip[i], Im[i], lognorm1=True, lognorm2=True)
-            misc.myimshow(Ip[i]-Im[i])
+            misc.myimshow2(Ip[i], Im[i], 
+                           'Probe {:d} Positive Image'.format(i+1), 'Probe {:d} Negative Image'.format(i+1),
+                           lognorm1=True, lognorm2=True)
+            misc.myimshow(Ip[i]-Im[i], 'Probe {:d} Intensity Difference'.format(i+1))
         
     E_probes = cp.zeros((probes.shape[0], 2*nmask))
     I_diff = cp.zeros((probes.shape[0], nmask))

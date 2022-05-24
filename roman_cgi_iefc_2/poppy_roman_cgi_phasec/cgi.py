@@ -27,7 +27,7 @@ class CGI_POPPY():
     def __init__(self, cgi_mode='HLC575', wavelength=None, npsf=64, psf_pixelscale=13e-6*u.m/u.pix, psf_pixelscale_lamD=None,
                  offset=(0,0), use_pupil_defocus=True, use_fieldstop=False, use_opds=False, use_fpm=True, polaxis=0, 
                  return_intermediates=False, 
-                 quiet=True, ngpus=0.5):
+                 quiet=True):
         
         self.pupil_diam = 2.363114*u.m
         
@@ -79,8 +79,6 @@ class CGI_POPPY():
         
         self.return_intermediates = return_intermediates
         self.quiet = quiet
-        
-        self.ngpus = ngpus
         
     def init_mode_optics(self):
         self.FPM_plane = poppy.ScalarTransmission('FPM Plane (No Optic)', planetype=PlaneType.intermediate) # placeholder
@@ -290,9 +288,20 @@ class CGI_POPPY():
         if not self.quiet: print('PSF calculated in {:.3f}s'.format(time.time()-start))
         return wfs
     
-    _calc_psf = ray.remote(calc_psf)
+    @ray.remote
+    def _calc_psf(self):
+        start = time.time()
+        if not self.quiet: print('Propagating wavelength {:.3f}.'.format(self.wavelength.to(u.nm)))
+            
+        if self.cgi_mode=='HLC575':
+            psf, wfs = hlc.run(self)
+        else: 
+            psf, wfs = spc.run(self)
+        
+        if not self.quiet: print('PSF calculated in {:.3f}s'.format(time.time()-start))
+        return wfs
     
-    def calc_psfs(self, wavelengths=None, dm_commands=None, offsets=None):
+    def calc_psfs(self, ncpus=16, ngpus=1, wavelengths=None, dm_commands=None, offsets=None):
         start = time.time()
         
         if wavelengths is None:
@@ -313,9 +322,9 @@ class CGI_POPPY():
                     self.init_inwave()
                     
                     if poppy.accel_math._USE_CUPY:
-                        ref = self._calc_psf.options(num_gpus=self.ngpus).remote(self)
+                        ref = self._calc_psf.options(num_cpus=ncpus, num_gpus=ngpus).remote(self)
                     else: 
-                        ref = self._calc_psf.remote(self)
+                        ref = self._calc_psf.options(num_cpus=ncpus).remote(self)
                     pending_results.append(ref)
                 self.add_dm1(-dm_commands[j][0])
                 self.add_dm2(-dm_commands[j][1])
