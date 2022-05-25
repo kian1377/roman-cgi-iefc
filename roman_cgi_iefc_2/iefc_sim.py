@@ -16,9 +16,9 @@ import misc
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
 def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, pca_modes=None):
     if poppy.accel_math._USE_CUPY:
-        differential_operator = cp.array([ [-1,1,0,0] , [0,0,-1,1] ]) / (2 * probe_amplitude * sysi.texp)
+        differential_operator = cp.array([ [-1,1,0,0] , [0,0,-1,1] ]) / (2 * probe_amplitude * sysi.texp.value)
     else:
-        differential_operator = np.array([ [-1,1,0,0] , [0,0,-1,1] ]) / (2 * probe_amplitude * sysi.texp)
+        differential_operator = np.array([ [-1,1,0,0] , [0,0,-1,1] ]) / (2 * probe_amplitude * sysi.texp.value)
 
     if DM==1:
         dm1_commands = [-1.0*probe_amplitude*probe_cube[0], 1.0*probe_amplitude*probe_cube[0],
@@ -33,7 +33,7 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
     dm_commands = []
     for i in range(len(dm1_commands)):
         dm_commands.append(np.vstack((dm1_commands[i], dm2_commands[i])))
-    wfs = sysi.calc_psfs(dm_commands=dm_commands)
+    wfs = sysi.calc_psfs(ncpus=22, ngpus=1/4, dm_commands=dm_commands)
     
     images=[]
     for i,wf in enumerate(wfs): 
@@ -180,7 +180,7 @@ def run(sysi, control_matrix, probe_modes, probe_amplitude, calibration_modes, w
         # Take an image to estimate the metrics
         image = sysi.calc_psf()[-1]
         metric_images.append(image)
-        dm_commands.append(copy.copy(sysi.DM1.surface))
+        dm_commands.append(sysi.DM1.surface)
         
         if display: misc.myimshow2(dm_command.reshape(sysi.Nact,sysi.Nact), image.intensity, lognorm2=True)
     print('I-EFC loop completed in {:.3f}s.'.format(time.time()-start))

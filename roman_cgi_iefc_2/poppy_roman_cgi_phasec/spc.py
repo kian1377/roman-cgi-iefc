@@ -140,74 +140,74 @@ def run(SPC):
     if SPC.use_opds: fosys.add_optic(opds.primary_opd)
         
     fosys.add_optic(secondary, distance=d_pri_sec)
-    if SPC.use_opds: fosys.add_optic(secondary_opd)
+    if SPC.use_opds: fosys.add_optic(opds.secondary_opd)
         
     fosys.add_optic(poma_fold, distance=d_sec_pomafold)
-    if SPC.use_opds: fosys.add_optic(poma_fold_opd)
+    if SPC.use_opds: fosys.add_optic(opds.poma_fold_opd)
         
     fosys.add_optic(m3, distance=d_pomafold_m3)
-    if SPC.use_opds: fosys.add_optic(m3_opd)
+    if SPC.use_opds: fosys.add_optic(opds.m3_opd)
         
     fosys.add_optic(m4, distance=d_m3_m4)
-    if SPC.use_opds: fosys.add_optic(m4_opd)
+    if SPC.use_opds: fosys.add_optic(opds.m4_opd)
         
     fosys.add_optic(m5, distance=d_m4_m5)
-    if SPC.use_opds: fosys.add_optic(m5_opd)
+    if SPC.use_opds: fosys.add_optic(opds.m5_opd)
         
     fosys.add_optic(tt_fold, distance=d_m5_ttfold)
-    if SPC.use_opds: fosys.add_optic(tt_fold_opd)
+    if SPC.use_opds: fosys.add_optic(opds.tt_fold_opd)
         
     fosys.add_optic(fsm, distance=d_ttfold_fsm)
-    if SPC.use_opds: fosys.add_optic(fsm_opd)
+    if SPC.use_opds: fosys.add_optic(opds.fsm_opd)
         
     fosys.add_optic(oap1, distance=d_fsm_oap1)
-    if SPC.use_opds: fosys.add_optic(oap1_opd)
+    if SPC.use_opds: fosys.add_optic(opds.oap1_opd)
         
     fosys.add_optic(focm, distance=d_oap1_focm)
-    if SPC.use_opds: fosys.add_optic(focm_opd)
+    if SPC.use_opds: fosys.add_optic(opds.focm_opd)
         
     fosys.add_optic(oap2, distance=d_focm_oap2)
-    if SPC.use_opds: fosys.add_optic(oap2_opd)
+    if SPC.use_opds: fosys.add_optic(opds.oap2_opd)
         
     fosys.add_optic(SPC.DM1, distance=d_oap2_dm1)
-    if SPC.use_opds: fosys.add_optic(dm1_opd)
+    if SPC.use_opds: fosys.add_optic(opds.dm1_opd)
         
     fosys.add_optic(SPC.DM2, distance=d_dm1_dm2)
-    if SPC.use_opds: fosys.add_optic(dm2_opd)
+    if SPC.use_opds: fosys.add_optic(opds.dm2_opd)
         
     fosys.add_optic(oap3, distance=d_dm2_oap3)
-    if SPC.use_opds: fosys.add_optic(oap3_opd)
+    if SPC.use_opds: fosys.add_optic(opds.oap3_opd)
         
     fosys.add_optic(fold3, distance=d_oap3_fold3)
-    if SPC.use_opds: fosys.add_optic(fold3_opd)
+    if SPC.use_opds: fosys.add_optic(opds.fold3_opd)
         
     fosys.add_optic(oap4, distance=d_fold3_oap4)
-    if SPC.use_opds: fosys.add_optic(oap4_opd)
+    if SPC.use_opds: fosys.add_optic(opds.oap4_opd)
         
     fosys.add_optic(SPC.SPM, distance=d_oap4_pupilmask)
-    if SPC.use_opds: fosys.add_optic(pupil_mask_opd)
+    if SPC.use_opds: fosys.add_optic(opds.pupil_mask_opd)
         
     fosys.add_optic(oap5, distance=d_pupilmask_oap5)
-    if SPC.use_opds: fosys.add_optic(oap5_opd)
+    if SPC.use_opds: fosys.add_optic(opds.oap5_opd)
     
     fosys.add_optic(SPC.FPM_plane, distance=d_oap5_fpm)
     fosys.add_optic(SPC.FPM, distance=0*u.m)
     fosys.add_optic(oap6, distance=d_fpm_oap6)
-    if SPC.use_opds: fosys.add_optic(oap6_opd)
+    if SPC.use_opds: fosys.add_optic(opds.oap6_opd)
         
     fosys.add_optic(SPC.LS, distance=d_oap6_lyotstop)
     fosys.add_optic(oap7, distance=d_lyotstop_oap7)
-    if SPC.use_opds: fosys.add_optic(oap7_opd)
+    if SPC.use_opds: fosys.add_optic(opds.oap7_opd)
         
     fosys.add_optic(SPC.fieldstop, distance=d_oap7_fieldstop)
     fosys.add_optic(oap8, distance=d_fieldstop_oap8)
-    if SPC.use_opds: fosys.add_optic(oap8_opd)
+    if SPC.use_opds: fosys.add_optic(opds.oap8_opd)
         
     fosys.add_optic(filt, distance=d_oap8_filter)
-    if SPC.use_opds: fosys.add_optic(filter_opd)
+    if SPC.use_opds: fosys.add_optic(opds.filter_opd)
         
     fosys.add_optic(lens_1, distance=d_filter_lens_1_pp1)
-    if SPC.use_opds: fosys.add_optic(lens_opd)
+    if SPC.use_opds: fosys.add_optic(opds.lens_opd)
         
     fosys.add_optic(lens_2, distance=d_lens_1_pp2_lens_2_pp1)
     fosys.add_optic(fold4, distance=d_lens_2_pp2_fold4)

@@ -24,7 +24,7 @@ from . import hlc, spc, polmap
 
 class CGI_POPPY():
 
-    def __init__(self, cgi_mode='HLC575', wavelength=None, npsf=64, psf_pixelscale=13e-6*u.m/u.pix, psf_pixelscale_lamD=None,
+    def __init__(self, cgi_mode='HLC575', wavelength=None, npsf=None, psf_pixelscale=13e-6*u.m/u.pix, psf_pixelscale_lamD=None,
                  offset=(0,0), use_pupil_defocus=True, use_fieldstop=False, use_opds=False, use_fpm=True, polaxis=0, 
                  return_intermediates=False, 
                  quiet=True):
@@ -37,16 +37,19 @@ class CGI_POPPY():
             self.npix = 310
             self.oversample = 1024/310
             self.D = self.pupil_diam*self.npix/309
+            self.npsf = 64
         elif cgi_mode=='SPC730':
             self.wavelength_c = 730e-9*u.m
             self.npix = 1000
             self.oversample = 2.048
             self.D = self.pupil_diam
+            self.npsf = 64
         elif cgi_mode=='SPC825':
             self.wavelength_c = 825e-9*u.m
             self.npix = 1000
             self.oversample = 2.048
             self.D = self.pupil_diam
+            self.npsf = 200
             
         if wavelength is None: self.wavelength = self.wavelength_c
         
@@ -57,7 +60,6 @@ class CGI_POPPY():
         self.use_opds = use_opds
         self.polaxis = polaxis
         
-        self.npsf = npsf
         if psf_pixelscale_lamD is not None: # overrides psf_pixelscale this way
             self.psf_pixelscale_lamD = psf_pixelscale_lamD
             self.psf_pixelscale = 13e-6*u.m/u.pix / (0.5e-6/self.wavelength_c.value) * self.psf_pixelscale_lamD/0.5
@@ -301,7 +303,7 @@ class CGI_POPPY():
         if not self.quiet: print('PSF calculated in {:.3f}s'.format(time.time()-start))
         return wfs
     
-    def calc_psfs(self, ncpus=16, ngpus=1, wavelengths=None, dm_commands=None, offsets=None):
+    def calc_psfs(self, ncpus=94, ngpus=1, wavelengths=None, dm_commands=None, offsets=None):
         start = time.time()
         
         if wavelengths is None:
