@@ -13,17 +13,15 @@ from poppy.poppy_core import PlaneType
 
 import ray
 
-from . import hlc, spc, polmap, hlc_v2, spc_v2
+from . import hlc, spc, polmap, hlc_v2
 
 from importlib import reload
 reload(hlc)
 reload(spc)
-reload(hlc_v2)
-reload(spc_v2)
 reload(polmap)
 
 cgi_dir = Path('/groups/douglase/kians-data-files/roman-cgi-phasec-data')
-dm_dir = Path('/groups/douglase/kians-data-files/roman-cgi-phasec-data/dm-acts')
+dm_dir = cgi_dir/'dm-acts'
 
 class CGI():
 
@@ -32,10 +30,13 @@ class CGI():
                  wavelength=None, 
                  npsf=64, psf_pixelscale=13e-6*u.m/u.pix, psf_pixelscale_lamD=None, interp_order=3,
                  offset=(0,0), 
-                 use_fpm=True, use_fieldstop=True, 
-                 use_pupil_defocus=True, use_opds=False, 
-                 polaxis=0, 
-                 return_intermediates=False):
+                 use_fpm=True, 
+                 use_fieldstop=True, 
+                 use_pupil_defocus=True, 
+                 use_opds=False, 
+                 dm1_ref=np.zeros((48,48)),
+                 dm2_ref=np.zeros((48,48)),
+                 polaxis=0):
         
         self.cgi_mode = cgi_mode
         
@@ -44,7 +45,7 @@ class CGI():
             self.wavelength_c = 575e-9*u.m
             self.npix = 310
             self.oversample = 1024/310
-            self.D = self.pupil_diam*self.npix/309
+            self.D = self.pupil_diam
         elif self.cgi_mode=='spc-spec':
             self.wavelength_c = 730e-9*u.m
             self.npix = 1000
@@ -54,7 +55,6 @@ class CGI():
             self.wavelength_c = 825e-9*u.m
             self.npix = 1000
             self.oversample = 2.048
-#             self.oversample = 4.096
             self.D = self.pupil_diam
             
         self.as_per_lamD = ((self.wavelength_c/self.pupil_diam)*u.radian).to(u.arcsec)
@@ -81,7 +81,7 @@ class CGI():
         self.interp_order = interp_order # interpolation order for resampling wavefront at detector
         
         self.texp = 1*u.s
-        self.peak_photon_flux = 1e10*u.photon/u.s
+        self.peak_photon_flux = 1e8*u.photon/u.s
         
         self.detector_gain = 1*u.electron/u.photon
         self.read_noise_std = 1.7*u.electron/u.photon
@@ -90,10 +90,21 @@ class CGI():
         
         self.init_mode_optics()
         self.init_dms()
+        self.set_dm1(dm1_ref)
+        self.set_dm2(dm2_ref)
+        
         if self.use_opds: 
             self.init_opds()
-        
-        self.return_intermediates = return_intermediates
+            self.optics = ['pupil', 'polmap', 'primary', 'secondary', 'poma_fold', 'm3', 'm4', 'm5', 'tt_fold', 'fsm', 'oap1', 
+                           'focm', 'oap2', 'dm1', 'dm2', 'oap3', 'fold3', 'oap4', 'pupilmask', 'oap5', 'fpm', 'oap6',
+                           'lyotstop', 'oap7', 'fieldstop', 'oap8', 'filter', 
+                           'imaging_lens_lens1', 'imaging_lens_lens2', 'fold4', 'image']
+            
+        else:
+            self.optics = ['pupil', 'polmap', 'primary', 'secondary', 'poma_fold', 'm3', 'm4', 'm5', 'tt_fold', 'fsm', 'oap1', 
+                           'focm', 'oap2', 'dm1', 'dm2', 'oap3', 'fold3', 'oap4', 'pupilmask', 'oap5', 'fpm', 'oap6',
+                           'lyotstop', 'oap7', 'fieldstop', 'oap8', 'filter', 
+                           'imaging_lens_lens1', 'imaging_lens_lens2', 'fold4', 'image']
         
     def copy_mode_settings(self, nactors=1):
         settings = []
@@ -108,8 +119,9 @@ class CGI():
                              'use_fieldstop':self.use_fieldstop,
                              'use_pupil_defocus':self.use_pupil_defocus,
                              'use_opds':self.use_opds, 
-                             'polaxis':self.polaxis,
-                             'return_intermediates':self.return_intermediates})
+                             'dm1_ref':self.get_dm1(),
+                             'dm2_ref':self.get_dm2(),
+                             'polaxis':self.polaxis,})
         return settings
            
     def init_mode_optics(self):
@@ -117,10 +129,19 @@ class CGI():
         
         if self.cgi_mode=='hlc':
             self.optics_dir = cgi_dir/'hlc'
+#             self.PUPIL = poppy.FITSOpticalElement('Roman Pupil', 
+#                                                   transmission=str(self.optics_dir/'pupil.fits'),
+#                                                   planetype=PlaneType.pupil)
             self.PUPIL = poppy.FITSOpticalElement('Roman Pupil', 
-                                                  transmission=str(self.optics_dir/'pupil.fits'),
+                                                  transmission=str(self.optics_dir/'pupil_n310_new.fits'),
+                                                  pixelscale=self.pupil_diam.value/310,
                                                   planetype=PlaneType.pupil)
+    
             self.SPM = poppy.ScalarTransmission('SPM Plane (No Optic)', planetype=PlaneType.pupil)
+        
+            self.dm2_mask = poppy.FITSOpticalElement('DM2 Mask', 
+                                                     transmission=str(self.optics_dir/'dm2mask.fits'),
+                                                     planetype=PlaneType.intermediate)
             if self.use_fpm:
                 # Find nearest available FPM wavelength that matches specified wavelength and initialize the FPM data
                 lam_um = self.wavelength.value * 1e6
@@ -146,30 +167,35 @@ class CGI():
                 fpm_i = fits.getdata(fpm_i_fname)
                     
                 self.fpm_phasor = fpm_r + 1j*fpm_i
-                self.fpm_mask = (fpm_r != fpm_r[0,0]).astype(int)
+                
+                print(fpm_r.shape)
+#                 self.fpm_mask = (fpm_r != fpm_r[0,0]).astype(int)
+                self.fpm_mask = (fpm_r != fpm_r[fpm_r.shape[0]-1,fpm_r.shape[0]-1]).astype(int)
                 self.fpm_ref_wavelength = fits.getheader(fpm_r_fname)['WAVELENC']
                 self.fpm_pixelscale_lamD = fits.getheader(fpm_r_fname)['PIXSCLLD']
             else:
                 self.FPM = None
             
+#             self.LS = poppy.FITSOpticalElement('Lyot Stop', 
+#                                                transmission=str(self.optics_dir/'lyot_rotated.fits'), 
+#                                                planetype=PlaneType.pupil)
             self.LS = poppy.FITSOpticalElement('Lyot Stop', 
-                                               transmission=str(self.optics_dir/'lyot_rotated.fits'), 
+                                               transmission=str(self.optics_dir/'lyot_hlc_n310_new.fits'), 
+                                               pixelscale=5.50105901118828e-05 * 309/310,
                                                planetype=PlaneType.pupil)
             
             if self.use_fieldstop: 
-                radius = 9.7/(309/(self.npix*self.oversample)) * (self.wavelength_c/self.wavelength) * 7.229503001768824e-06*u.m
-                self.fieldstop = poppy.CircularAperture(radius=radius, name='HLC Field Stop')
+                radius = 9.7/(310/(self.npix*self.oversample)) * (self.wavelength_c/self.wavelength) * 7.229503001768824e-06*u.m
+                self.fieldstop = poppy.CircularAperture(radius=radius, name='HLC Field Stop', gray_pixel=True)
             else: 
                 self.fieldstop = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='Field Stop Plane (No Optic)')
                 
         elif self.cgi_mode=='spc-spec': 
             self.optics_dir = cgi_dir/'spc-spec'            
             self.PUPIL = poppy.FITSOpticalElement('Roman Pupil', 
-#                                                   rotation=180*u.degree,
                                                   transmission=str(self.optics_dir/'pupil_SPC-20200617_1000.fits'),
                                                   planetype=PlaneType.pupil)
             self.SPM = poppy.FITSOpticalElement('SPM', 
-#                                                 rotation=180*u.degree,
                                                 transmission=str(self.optics_dir/'SPM_SPC-20200617_1000_rounded9_rotated.fits'),
                                                 planetype=PlaneType.pupil)
             self.LS = poppy.FITSOpticalElement('Lyot Stop',
@@ -202,6 +228,17 @@ class CGI():
                                                planetype=PlaneType.pupil)
             self.fieldstop = poppy.ScalarTransmission(planetype=PlaneType.intermediate, name='Field Stop Plane (No Optic)')
             self.use_fieldstop = False
+        
+        if self.polaxis!=0:
+            polfile = cgi_dir/'pol'/'phasec_pol'
+            polmap_amp, polmap_opd = polmap.polmap( str(polfile), 
+                                                   self.wavelength, 
+                                                   self.npix, int(self.oversample*self.npix), self.polaxis )
+            self.POLMAP = poppy.ArrayOpticalElement(name='Polarization Error Map', 
+                                                    opd=polmap_opd, transmission=polmap_amp,
+                                                    pixelscale=self.pupil_diam/(self.npix*u.pix))
+        else:
+            self.POLMAP = poppy.ScalarTransmission('No Polarization Error Map')
             
         self.detector = poppy.Detector(pixelscale=self.psf_pixelscale, fov_pixels=self.npsf, interp_order=self.interp_order)
         
@@ -211,19 +248,25 @@ class CGI():
         self.dm_diam = 46.3*u.mm
         self.act_spacing = 0.9906*u.mm
         
-        self.dm_mask = cp.ones((self.Nact,self.Nact))
-        xx = (cp.linspace(0, self.Nact-1, self.Nact) - self.Nact/2 + 1/2) * self.act_spacing.value*2
-        x,y = cp.meshgrid(xx,xx)
-        r = cp.sqrt(x**2 + y**2)
-        self.dm_mask[r>(self.dm_diam+self.act_spacing).value] = 0
+        self.dm_mask = np.ones((self.Nact,self.Nact))
+        xx = (np.linspace(0, self.Nact-1, self.Nact) - self.Nact/2 + 1/2) * self.act_spacing.to(u.mm).value*2
+        x,y = np.meshgrid(xx,xx)
+        r = np.sqrt(x**2 + y**2)
+        self.dm_mask[r>47] = 0
+        
+        self.dm_zernikes = poppy.zernike.arbitrary_basis(cp.array(self.dm_mask), nterms=15, outside=0).get()
         
         self.DM1 = poppy.ContinuousDeformableMirror(dm_shape=(self.Nact,self.Nact), name='DM1', 
-                                                    actuator_spacing=self.act_spacing, radius=self.dm_diam/2,
+                                                    actuator_spacing=self.act_spacing, 
+#                                                     radius=self.dm_diam/2,
                                                     inclination_x=0,inclination_y=9.65,
+#                                                     inclination_x=9.65,inclination_y=0,
                                                     influence_func=str(dm_dir/'proper_inf_func.fits'))
         self.DM2 = poppy.ContinuousDeformableMirror(dm_shape=(self.Nact,self.Nact), name='DM2', 
-                                                    actuator_spacing=self.act_spacing, radius=self.dm_diam/2,
+                                                    actuator_spacing=self.act_spacing, 
+#                                                     radius=self.dm_diam/2,
                                                     inclination_x=0,inclination_y=9.65,
+#                                                     inclination_x=9.65,inclination_y=0,
                                                     influence_func=str(dm_dir/'proper_inf_func.fits'))
     
     def reset_dms(self):
@@ -231,52 +274,28 @@ class CGI():
         self.DM2.set_surface( np.zeros((self.Nact, self.Nact)) )
             
     def set_dm1(self, dm_command):
-        dm_command = self.check_dm_command_shape(dm_command)
         self.DM1.set_surface(dm_command)
     
     def set_dm2(self, dm_command):
-        dm_command = self.check_dm_command_shape(dm_command)
         self.DM2.set_surface(dm_command)
         
     def add_dm1(self, dm_command):
-        dm_command = self.check_dm_command_shape(dm_command)
-        self.DM1.set_surface(self.DM1.surface.get() + dm_command) # I should make the DM.surface attribute be Numpy no matter what
+        self.DM1.set_surface(self.get_dm1() + dm_command) # I should make the DM.surface attribute be Numpy no matter what
         
     def add_dm2(self, dm_command):
-        dm_command = self.check_dm_command_shape(dm_command)
-        self.DM2.set_surface(self.DM2.surface.get() + dm_command)
+        self.DM2.set_surface(self.get_dm2() + dm_command)
         
     def get_dm1(self):
         return self.DM1.surface.get()
-    
+        
     def get_dm2(self):
         return self.DM2.surface.get()
-    
-    def check_dm_command_shape(self, dm_command):
-        if dm_command.shape[0]==self.Nact**2 or dm_command.shape[1]==self.Nact**2: # passes if shape does not have 2 values
-            dm_command = dm_command.reshape((self.Nact, self.Nact))
-        return dm_command
     
     # utility functions
     def glass_index(self, glass):
         a = np.loadtxt( str( cgi_dir/'glass'/(glass+'_index.txt') ) )  # lambda_um index pairs
         f = interp1d( a[:,0], a[:,1], kind='cubic' )
         return f( self.wavelength.value*1e6 )
-
-    def init_inwave(self):
-        inwave = poppy.FresnelWavefront(beam_radius=self.D/2, wavelength=self.wavelength,
-                                        npix=self.npix, oversample=self.oversample)
-        if self.polaxis!=0: 
-            polfile = cgi_dir/'pol'/'phasec_pol'
-            polmap.polmap( inwave, str(polfile), self.npix, self.polaxis )
-            
-        if self.offset[0]>0 or self.offset[1]>0:
-            inwave.tilt(Xangle=self.offset[0]*self.as_per_lamD, Yangle=self.offset[1]*self.as_per_lamD)
-        
-        inwave.w_0 = self.pupil_diam/2
-        
-        self.inwave = inwave
-    
     
     def init_opds(self):
         opddir = cgi_dir/'opd-maps'
@@ -378,88 +397,44 @@ class CGI():
         self.lens_opd = poppy.FITSOpticalElement('LENS OPD', 
                                             opd=str(opddir/'roman_phasec_LENS_phase_error_V1.0.fits'), 
                                             opdunits=opdunits, planetype=PlaneType.intermediate)
-
-    def calc_wfs(self, quiet=False): # return all wavefronts
+        
+    def init_inwave(self):
+        inwave = poppy.FresnelWavefront(beam_radius=self.D/2, wavelength=self.wavelength,
+                                        npix=self.npix, oversample=self.oversample)
+        
+        if self.offset[0]>0 or self.offset[1]>0:
+            inwave.tilt(Xangle=self.offset[0]*self.as_per_lamD, Yangle=self.offset[1]*self.as_per_lamD)
+            
+        self.inwave = inwave
+        
+    def calc_wfs(self, quiet=False):
         start = time.time()
         if not quiet: print('Propagating wavelength {:.3f}.'.format(self.wavelength.to(u.nm)))
-        self.return_intermediates = True
-        
+            
         self.init_inwave()
         if self.cgi_mode=='hlc':
-            wfs = hlc.run(self)
+            wfs = hlc.run(self, return_intermediates=True)
         else:
-            wfs = spc.run(self)
+            wfs = spc.run(self, return_intermediates=True)
             
         if not quiet: print('PSF calculated in {:.3f}s'.format(time.time()-start))
             
         return wfs
     
-    def snap(self, quiet=True): # just return the final wavefront
+    
+    def calc_psf(self, quiet=True):
         start = time.time()
         if not quiet: print('Propagating wavelength {:.3f}.'.format(self.wavelength.to(u.nm)))
-        self.return_intermediates = False
-        
+            
         self.init_inwave()
         if self.cgi_mode=='hlc':
-            wfs = hlc.run(self)
+            wfs = hlc.run(self, return_intermediates=False)
         else:
-            wfs = spc.run(self)
-            
-        psf = wfs[-1]
-            
-        return psf
-    
-    def add_noise(self, image):
-        peak_photons = self.peak_photon_flux * self.texp
-        peak_electrons = self.detector_gain * peak_photons
-
-        image_in_electrons = peak_electrons.value * image
-
-        # Add photon shot noise
-        if type(image) is np.ndarray:
-            noisy_image_in_electrons = np.random.poisson(image_in_electrons)
-        else:
-            noisy_image_in_electrons = cp.random.poisson(image_in_electrons)
-
-        # Compute dark current
-        if type(image) is np.ndarray:
-            dark_current = (self.dark_rate * self.texp).value * np.ones_like(image)
-            dark_current = np.random.poisson(dark_current)
-        else:
-            dark_current = (self.dark_rate * self.texp).value * cp.ones_like(image)
-            dark_current = cp.random.poisson(dark_current)
-
-        # Compute Gaussian read noise
-        if type(image) is np.ndarray:
-            read_noise = self.read_noise_std.value * np.random.randn(image.shape[0], image.shape[1])
-        else:
-            read_noise = self.read_noise_std.value * cp.random.randn(image.shape[0], image.shape[1])
-
-        # Convert back from e- to counts and then discretize
-        if type(image) is np.ndarray:
-            image_in_photons = np.round( (noisy_image_in_electrons + dark_current + read_noise) / self.detector_gain.value)
-        else:
-            image_in_photons = cp.round( (noisy_image_in_electrons + dark_current + read_noise) / self.detector_gain.value)
-
-        # Convert back from counts to normalized intensity
-        noisy_image = image_in_photons / self.peak_photon_flux.value
-
-        return noisy_image
-    
-    def calc_wfs_v2(self, quiet=False):
-        start = time.time()
-        if not quiet: print('Propagating wavelength {:.3f}.'.format(self.wavelength.to(u.nm)))
-        self.return_intermediates = True
-        
-        self.init_inwave()
-        if self.cgi_mode=='hlc':
-            wfs = hlc_v2.run(self)
-        else:
-            wfs = spc_v2.run(self)
+            wfs = spc.run(self, return_intermediates=False)
             
         if not quiet: print('PSF calculated in {:.3f}s'.format(time.time()-start))
             
-        return wfs
+        return wfs[-1]
     
 CGIR = ray.remote(CGI)
 

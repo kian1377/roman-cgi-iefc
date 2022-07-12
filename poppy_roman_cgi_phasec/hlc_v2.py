@@ -14,7 +14,7 @@ import copy
 import proper
 from roman_phasec_proper import mft2, ffts, trim
 
-def run(HLC):    
+def run(HLC, return_intermediates=False):    
     # Define various optic focal lengths, diameters, and distances between optics.
     fl_pri = 2.838279206904720*u.m
     sm_despace_m = 0*u.m
@@ -226,7 +226,7 @@ def run(HLC):
     
     # Calculate a psf from the first optical system to retrieve the final wavefront at the FPM plane 
     fpm_hdu, wfs_to_fpm = fosys1.calc_psf(wavelength=HLC.wavelength, inwave=HLC.inwave, 
-                                          return_final=True, return_intermediates=HLC.return_intermediates)
+                                          return_final=True, return_intermediates=return_intermediates)
     inwave2 = copy.deepcopy(wfs_to_fpm[-1]) # copy Wavefront object for use in the post FPM system
     
     if HLC.use_fpm: 
@@ -251,9 +251,10 @@ def run(HLC):
         inwave2.wavefront = cp.array(wavefront0)
         
     psf_hdu, wfs_from_fpm = fosys2.calc_psf(wavelength=HLC.wavelength, inwave=inwave2, normalize='none',
-                                            return_final=True, return_intermediates=HLC.return_intermediates,)
+                                            return_final=True, return_intermediates=return_intermediates,)
     
-    if HLC.return_intermediates:
+    if return_intermediates:
+        wfs_to_fpm.pop(-1)
         wfs = wfs_to_fpm + wfs_from_fpm
     else: 
         wfs = wfs_from_fpm

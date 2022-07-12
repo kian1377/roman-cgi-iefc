@@ -5,7 +5,7 @@
 import numpy as np
 import poppy
 from poppy.accel_math import _ncp
-
+import astropy.units as u
 
 import math
 from scipy.interpolate import interp1d
@@ -27,14 +27,18 @@ from roman_phasec_proper import trim
 #    Note: the mean conditions (5,6,10) should only be used for sensing;
 #    contrast evaluation must be done by computing each in/out condition separately
 
-def polmap( wavefront, polfile, pupil_diam_pix, condition, MUF=1.0 ):
+# def polmap( wavefront, polfile, pupil_diam_pix, condition, MUF=1.0 ):
+def polmap( polfile, wavelength, pupil_diam_pix, n, condition, MUF=1.0 ):
     global _ncp
     from poppy.accel_math import _ncp
     
 #     n = proper.prop_get_gridsize( wavefront )
 #     lambda_m = proper.prop_get_wavelength(wavefront)
-    n = wavefront.wavefront.shape[0]
-    lambda_m = wavefront.wavelength.value
+
+#     n = wavefront.wavefront.shape[0]
+#     lambda_m = wavefront.wavelength.value
+    
+    lambda_m = wavelength.to(u.m).value
     
     if condition <= 2:
         (amp, pha) = polab( polfile, lambda_m, pupil_diam_pix, condition )
@@ -64,10 +68,13 @@ def polmap( wavefront, polfile, pupil_diam_pix, condition, MUF=1.0 ):
 #         wavefront.wavefront *= poppy.utils.pad_or_crop_to_shape(amp*cp.exp(1j*(2*np.pi/lambda_m)*MUF*pha), (n,n))
 #     else:
 #         wavefront.wavefront *= poppy.utils.pad_or_crop_to_shape(amp*np.exp(1j*(2*np.pi/lambda_m)*MUF*pha), (n,n))
-    wavefront.wavefront *= poppy.utils.pad_or_crop_to_shape(amp*np.exp(1j*(2*np.pi/lambda_m)*MUF*pha), (n,n))
+
+#     wavefront.wavefront *= poppy.utils.pad_or_crop_to_shape(amp*np.exp(1j*(2*np.pi/lambda_m)*MUF*pha), (n,n))
+    amp = poppy.utils.pad_or_crop_to_shape(amp, (n,n))
+    opd = poppy.utils.pad_or_crop_to_shape( MUF*pha, (n,n))
     
-    amp = 0
-    phase = 0
+#     amp = 0
+#     phase = 0
     amp_p45x = 0
     amp_m45x = 0
     amp_p45y = 0
@@ -77,7 +84,8 @@ def polmap( wavefront, polfile, pupil_diam_pix, condition, MUF=1.0 ):
     pha_p45y = 0
     pha_m45y = 0
 
-    return 
+#     return
+    return amp, opd
 
 # polfile: rootname of file containing polarization coefficients
 # lambda_m: wavelength in meters
@@ -183,9 +191,6 @@ def polab( polfile, lambda_m, pupil_diam_pix, condition ):
             else:
                 pha[j,:] = map
                 
-#     if poppy.accel_math._USE_CUPY:
-#         amp = cp.array(amp)
-#         pha = cp.array(pha)
     return amp, pha
 
 

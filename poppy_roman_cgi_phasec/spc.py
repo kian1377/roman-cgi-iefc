@@ -4,7 +4,7 @@ from poppy.poppy_core import PlaneType
 import numpy as np
 import astropy.units as u
 
-def run(SPC):
+def run(SPC, return_intermediates=False):
     # Define various optic focal lengths, diameters, and distances between optics.
     fl_pri = 2.838279206904720*u.m
     sm_despace_m = 0*u.m
@@ -125,10 +125,11 @@ def run(SPC):
     fold4 = poppy.CircularAperture(radius=diam_fold4/2,name="Fold4")
     
     # Create the optical system
-    fosys = poppy.FresnelOpticalSystem(name=SPC.cgi_mode, pupil_diameter=SPC.D, 
+    fosys = poppy.FresnelOpticalSystem(name=SPC.cgi_mode, pupil_diameter=SPC.pupil_diam, 
                                        npix=SPC.npix, beam_ratio=1/SPC.oversample, verbose=True)
 
     fosys.add_optic(SPC.PUPIL)
+    fosys.add_optic(SPC.POLMAP)
     fosys.add_optic(primary)
     if SPC.use_opds: fosys.add_optic(SPC.primary_opd)
         
@@ -208,7 +209,7 @@ def run(SPC):
 
     # Calculate the PSF of the FresnelOpticalSystem
     psf_hdu, wfs = fosys.calc_psf(wavelength=SPC.wavelength, inwave=SPC.inwave,
-                                  return_intermediates=SPC.return_intermediates, return_final=True)
+                                  return_intermediates=return_intermediates, return_final=True)
 
     return wfs   
        

@@ -11,7 +11,7 @@ import numpy as np
 import astropy.units as u
 import copy
 
-def run(HLC):    
+def run(HLC, return_intermediates=False):    
     # Define various optic focal lengths, diameters, and distances between optics.
     fl_pri = 2.838279206904720*u.m
     sm_despace_m = 0*u.m
@@ -132,10 +132,11 @@ def run(HLC):
     fold4 = poppy.CircularAperture(radius=diam_fold4/2,name="Fold4")
         
     # Create the first part of the optical system
-    fosys1 = poppy.FresnelOpticalSystem(name='HLC Pre-FPM', pupil_diameter=HLC.D, 
+    fosys1 = poppy.FresnelOpticalSystem(name='HLC Pre-FPM', pupil_diameter=HLC.pupil_diam, 
                                         npix=HLC.npix, beam_ratio=1/HLC.oversample, verbose=True)
     
     fosys1.add_optic(HLC.PUPIL)
+    fosys1.add_optic(HLC.POLMAP)
     fosys1.add_optic(primary)
     if HLC.use_opds: fosys1.add_optic(HLC.primary_opd)
         
@@ -174,7 +175,8 @@ def run(HLC):
         
     fosys1.add_optic(HLC.DM2, distance=d_dm1_dm2)
     if HLC.use_opds: fosys1.add_optic(HLC.dm2_opd)
-        
+#     fosys1.add_optic(HLC.dm2_mask)
+    
     fosys1.add_optic(oap3, distance=d_dm2_oap3)
     if HLC.use_opds: fosys1.add_optic(HLC.oap3_opd)
         
@@ -220,10 +222,12 @@ def run(HLC):
     fosys2.add_optic(fold4, distance=d_lens_2_pp2_fold4)
 
     fosys2.add_optic(HLC.detector, distance=d_fold4_image)
+
+#     fosys2.add_optic(HLC.detector, distance=d_lens_2_pp2_fold4 + d_fold4_image)
     
     # Calculate a psf from the first optical system to retrieve the final wavefront at the FPM plane 
     fpm_hdu, wfs_to_fpm = fosys1.calc_psf(wavelength=HLC.wavelength, inwave=HLC.inwave, 
-                                          return_final=True, return_intermediates=HLC.return_intermediates)
+                                          return_final=True, return_intermediates=return_intermediates)
     inwave2 = copy.deepcopy(wfs_to_fpm[-1]) # copy Wavefront object for use in the post FPM system
     
     if HLC.use_fpm: 
@@ -231,23 +235,9 @@ def run(HLC):
         nfpm = HLC.fpm_phasor.shape[0]
         n = inwave2.wavefront.shape[0]
         nfpmlamD = nfpm*fpm_pxscl_lamD*inwave2.oversample
-        mft = poppy.matrixDFT.MatrixFourierTransform(centering='ADJUSTABLE')
-        
-        # use MFTs to use super-sampled FPM
-#         wavefront0 = proper.prop_get_wavefront(wavefront)
-#         wavefront0 = ffts( wavefront0, 1 )              # to virtual pupil
-#         wavefront0 *= fpm_array[0,0]                    # apply amplitude & phase from FPM clear area
-#         nfpm = fpm_array.shape[0]
-#         fpm_sampling_lamdivD = fpm_sampling_lam0divD * fpm_lam0_m / lambda_m    # FPM sampling at current wavelength in lambda_m/D
-#         wavefront_fpm = mft2(wavefront0, fpm_sampling_lamdivD, pupil_diam_pix, nfpm, +1)   # MFT to highly-sampled focal plane
-#         wavefront_fpm *= fpm_mask * (fpm_array - 1)      # subtract field inside FPM region, add in FPM-multiplied region
-#         wavefront_fpm = mft2(wavefront_fpm, fpm_sampling_lamdivD, pupil_diam_pix, n, -1)        # MFT back to virtual pupil
-#         wavefront0 += wavefront_fpm
-#         wavefront_fpm = 0
-#         wavefront0 = ffts( wavefront0, -1 )     # back to normally-sampled focal plane to continue propagation
-#         wavefront.wfarr[:,:] = proper.prop_shift_center(wavefront0)
+        mft = poppy.matrixDFT.MatrixFourierTransform(centering='FFTSTYLE')
 
-        # Apply the FPM
+        # Apply the FPM with MFTs
         inwave2.wavefront = accel_math._ifftshift(inwave2.wavefront)
         inwave2.wavefront = accel_math.fft_2d(inwave2.wavefront, forward=False, fftshift=True) # do a forward FFT to virtual pupil
         inwave2.wavefront *= HLC.fpm_phasor[-1,-1]
@@ -264,9 +254,10 @@ def run(HLC):
         inwave2.wavefront = accel_math._fftshift(inwave2.wavefront)
         
     psf_hdu, wfs_from_fpm = fosys2.calc_psf(wavelength=HLC.wavelength, inwave=inwave2, normalize='none',
-                                            return_final=True, return_intermediates=HLC.return_intermediates,)
+                                            return_final=True, return_intermediates=return_intermediates,)
     
-    if HLC.return_intermediates:
+    if return_intermediates:
+        wfs_to_fpm.pop(-1)
         wfs = wfs_to_fpm + wfs_from_fpm
     else: 
         wfs = wfs_from_fpm
@@ -278,5 +269,6 @@ def run(HLC):
 #     0.21432764805243154 0.0030356875488610326 0.25243230860876475
 
 
-
+import ray
+runner = ray.remote(run)
 

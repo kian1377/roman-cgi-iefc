@@ -6,6 +6,7 @@ try:
     cupy_available = True
 except:
     cupy_available = False
+import proper 
 import matplotlib.pyplot as plt
 plt.rcParams['image.origin']='lower'
 from matplotlib.colors import LogNorm, Normalize
@@ -181,7 +182,7 @@ def myimshow3(arr1, arr2, arr3,
               title1=None, title2=None, title3=None, titlesize=12,
               npix=None, 
               pxscl1=None, pxscl2=None, pxscl3=None, 
-              use_ylabel1=True, use_ylabel2=True, use_ylabel3=True,
+              use_ylabel1=True, use_ylabel2=False, use_ylabel3=False,
               cmap1='magma', cmap2='magma', cmap3='magma',
               lognorm1=False, lognorm2=False, lognorm3=False,
               vmin1=None, vmax1=None, vmin2=None, vmax2=None, vmin3=None, vmax3=None, 
