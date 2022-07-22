@@ -98,28 +98,30 @@ def create_probe_poke_modes(Nact,
     return probe_modes
 
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
-def take_measurement(sysi, probe_cube, probe_amplitude, return_all=False, pca_modes=None, display=False):
+def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, pca_modes=None, display=False):
 
     if probe_cube.shape[0]==2:
         differential_operator = np.array([[-1,1,0,0],
-                                          [0,0,-1,1]]) / (2 * probe_amplitude*sysi.full_stroke.value * sysi.texp.value)
+                                          [0,0,-1,1]]) / (2 * probe_amplitude * sysi.texp.value)
     elif probe_cube.shape[0]==3:
         differential_operator = np.array([[-1,1,0,0,0,0],
                                           [0,0,-1,1,0,0],
-                                          [0,0,0,0,-1,1]]) / (2 * probe_amplitude*sysi.full_stroke.value * sysi.texp.value)
+                                          [0,0,0,0,-1,1]]) / (2 * probe_amplitude * sysi.texp.value)
     
     amps = np.linspace(-probe_amplitude, probe_amplitude, 2)
     images = []
     for probe in probe_cube: 
         for amp in amps:
-            sysi.add_dm(amp*probe)
-            if sysi.is_model:
-                psf = sysi.snap().intensity.get()
-            else:
+            if DM==1:
+                sysi.add_dm1(amp*probe)
                 psf = sysi.snap()
-            images.append(psf.flatten())
-            
-            sysi.add_dm(-amp*probe)
+                images.append(psf.flatten())
+                sysi.add_dm1(-amp*probe)
+            elif DM==2:
+                sysi.add_dm2(amp*probe)
+                psf = sysi.snap()
+                images.append(psf.flatten())
+                sysi.add_dm2(-amp*probe)
             
     images = np.array(images)
     
@@ -156,24 +158,24 @@ def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibra
             slope1, slope2 = (0, 0)
             for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
                 # DM1: Set the DM to the correct state
-                sysi.add_dm1(s * calibration_amplitude * calibration_mode)
+                sysi.add_dm1(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
                 differential_images_1, single_images_1 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1,
                                                                           return_all=True)
                 
                 images_1.append(single_images_1)
                 slope1 += s * differential_images_1 / (2 * calibration_amplitude)
                 
-                sysi.add_dm1(-s * calibration_amplitude * calibration_mode) # remove the calibrated mode from DM1
+                sysi.add_dm1(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) # remove the mode
                 
                 # DM2: Set the DM to the correct state
-                sysi.add_dm2(s * calibration_amplitude * calibration_mode)
+                sysi.add_dm2(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
                 differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1, 
                                                                           return_all=True)
                 
                 images_2.append(single_images_2)
                 slope2 += s * differential_images_2 / (2 * calibration_amplitude)
                 
-                sysi.add_dm2(-s * calibration_amplitude * calibration_mode) # remove the calibrated mode from DM2
+                sysi.add_dm2(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) 
                 
             print("\tCalibrated mode {:d} / {:d} in {:.3f}s".format(ci+1+start_mode, calibration_modes.shape[0], 
                                                                     time.time()-start))
@@ -194,7 +196,7 @@ def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibra
     print('Calibration complete.')
     return slopes, images
 
-def construct_control_matrix(response_matrix, weight_map, rcond1=1e-2, rcond2=1e-2, WLS=True, pca_modes=None):
+def construct_control_matrix(response_matrix, weight_map, nprobes=2, rcond1=1e-2, rcond2=1e-2, WLS=True, pca_modes=None):
     weight_mask = weight_map>0
     
     # Invert the matrix with an SVD and Tikhonov regularization
@@ -208,7 +210,10 @@ def construct_control_matrix(response_matrix, weight_map, rcond1=1e-2, rcond2=1e
     nmodes = int(response_matrix.shape[0]/2)
     if WLS:
         print('Using Weighted Least Squares ')
-        Wmatrix = np.diag(np.concatenate((weight_map[weight_mask], weight_map[weight_mask])))
+        if nprobes==2:
+            Wmatrix = np.diag(np.concatenate((weight_map[weight_mask], weight_map[weight_mask])))
+        elif nprobes==3:
+            Wmatrix = np.diag(np.concatenate((weight_map[weight_mask], weight_map[weight_mask], weight_map[weight_mask])))
         control_matrix_1 = utils.WeightedLeastSquares(masked_matrix[:,:nmodes], Wmatrix, rcond=rcond1)
         control_matrix_2 = utils.WeightedLeastSquares(masked_matrix[:,nmodes:], Wmatrix, rcond=rcond2)
     else: 
@@ -272,7 +277,9 @@ def run(sysi, control_matrix, probe_modes, probe_amplitude, calibration_modes, w
         dm2_commands.append(sysi.get_dm2())
         
         if display: 
-            misc.myimshow3(dm1_command, dm2_command, image, lognorm3=True, pxscl3=sysi.psf_pixelscale.to(u.mm/u.pix))
+            misc.myimshow3(dm1_command, dm2_command, image, 
+                           'DM1', 'DM2', 'PSF',
+                           lognorm3=True, pxscl3=sysi.psf_pixelscale.to(u.mm/u.pix))
     print('I-EFC loop completed in {:.3f}s.'.format(time.time()-start))
     return metric_images, dm1_commands, dm2_commands
 

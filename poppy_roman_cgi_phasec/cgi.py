@@ -20,6 +20,8 @@ reload(hlc)
 reload(spc)
 reload(polmap)
 
+import misc
+
 cgi_dir = Path('/groups/douglase/kians-data-files/roman-cgi-phasec-data')
 dm_dir = cgi_dir/'dm-acts'
 
@@ -90,6 +92,9 @@ class CGI():
         
         self.init_mode_optics()
         self.init_dms()
+        
+        self.dm1_ref = dm1_ref
+        self.dm2_ref = dm2_ref
         self.set_dm1(dm1_ref)
         self.set_dm2(dm2_ref)
         
@@ -270,9 +275,13 @@ class CGI():
                                                     influence_func=str(dm_dir/'proper_inf_func.fits'))
     
     def reset_dms(self):
-        self.DM1.set_surface( np.zeros((self.Nact, self.Nact)) )
-        self.DM2.set_surface( np.zeros((self.Nact, self.Nact)) )
-            
+        self.set_dm1(self.dm1_ref)
+        self.set_dm2(self.dm2_ref)
+    
+    def flatten_dms(self):
+        self.set_dm1( np.zeros((self.Nact, self.Nact)) )
+        self.set_dm2( np.zeros((self.Nact, self.Nact)) )
+    
     def set_dm1(self, dm_command):
         self.DM1.set_surface(dm_command)
     
@@ -290,6 +299,9 @@ class CGI():
         
     def get_dm2(self):
         return self.DM2.surface.get()
+    
+    def show_dms(self):
+        misc.myimshow2(self.get_dm1(), self.get_dm2(), 'DM1', 'DM2')
     
     # utility functions
     def glass_index(self, glass):
@@ -421,7 +433,6 @@ class CGI():
             
         return wfs
     
-    
     def calc_psf(self, quiet=True):
         start = time.time()
         if not quiet: print('Propagating wavelength {:.3f}.'.format(self.wavelength.to(u.nm)))
@@ -435,6 +446,17 @@ class CGI():
         if not quiet: print('PSF calculated in {:.3f}s'.format(time.time()-start))
             
         return wfs[-1]
+    
+    def snap(self):
+        start = time.time()
+        
+        self.init_inwave()
+        if self.cgi_mode=='hlc':
+            wfs = hlc.run(self, return_intermediates=False)
+        else:
+            wfs = spc.run(self, return_intermediates=False)
+            
+        return wfs[-1].intensity.get()
     
 CGIR = ray.remote(CGI)
 

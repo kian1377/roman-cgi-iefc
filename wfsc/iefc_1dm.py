@@ -113,9 +113,8 @@ def take_measurement(sysi, probe_cube, probe_amplitude, return_all=False, pca_mo
     for probe in probe_cube: 
         for amp in amps:
             sysi.add_dm1(amp*probe)
-            psf = sysi.calc_psf().intensity.get()
+            psf = sysi.snap()
             images.append(psf.flatten())
-            
             sysi.add_dm1(-amp*probe)
             
     images = np.array(images)
@@ -230,7 +229,7 @@ def run(sysi, control_matrix, probe_modes, probe_amplitude, calibration_modes, w
         sysi.set_dm1(dm_ref + dm_command)
 
         # Take an image to estimate the metrics
-        image = sysi.calc_psf().intensity.get()
+        image = sysi.snap()
             
         metric_images.append(copy.copy(image))
         dm_commands.append(sysi.get_dm1())
