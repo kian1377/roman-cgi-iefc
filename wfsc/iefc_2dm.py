@@ -168,14 +168,14 @@ def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibra
                 sysi.add_dm1(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) # remove the mode
                 
                 # DM2: Set the DM to the correct state
-                sysi.add_dm2(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
-                differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1, 
+                sysi.add_dm1(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
+                differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=2, 
                                                                           return_all=True)
                 
                 images_2.append(single_images_2)
                 slope2 += s * differential_images_2 / (2 * calibration_amplitude)
                 
-                sysi.add_dm2(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) 
+                sysi.add_dm1(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) 
                 
             print("\tCalibrated mode {:d} / {:d} in {:.3f}s".format(ci+1+start_mode, calibration_modes.shape[0], 
                                                                     time.time()-start))

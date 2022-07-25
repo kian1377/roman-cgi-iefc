@@ -16,6 +16,8 @@ def run_pwp(DM, wavelength, Npairs, dark_zone, score_zone,
             use_jacobian=False, jacobian=None, 
             estimator='batch_process', 
             display_probes=False, return_2d=False):
+    
+    
     # DM is a poppy.ContinuousDeformableMirror objects
     Nacts = DM.surface.shape[0]
     dm_nom = copy.deepcopy(DM.surface) # store the nominal DM actuator commands
@@ -197,24 +199,60 @@ def run_pwp(DM, wavelength, Npairs, dark_zone, score_zone,
     else:
         return E_est
 
-def generate_sinc_probe(Nacts, amp, probe_radius, probe_phase=0, offset=(0,0), bad_axis='x'):
-    print('Generating probe with amplitude={:.3e}, radius={:.1f}, phase={:.3f}, offset=({:.1f},{:.1f}), with discontinuity along '\
-          .format(amp, probe_radius, probe_phase, offset[0], offset[1]) + bad_axis + ' axis.')
-    xacts = np.arange( -(Nacts-1)/2, (Nacts+1)/2 )/Nacts - np.round(offset[0])/Nacts
-    yacts = np.arange( -(Nacts-1)/2, (Nacts+1)/2 )/Nacts - np.round(offset[1])/Nacts
-    Xacts,Yacts = np.meshgrid(xacts,yacts)
-    if bad_axis=='x': 
-        fX = 2*probe_radius
-        fY = probe_radius
-        omegaY = probe_radius/2
-        probe_commands = amp * np.sinc(fX*Xacts)*np.sinc(fY*Yacts) * np.cos(2*np.pi*omegaY*Yacts + probe_phase)
-    elif bad_axis=='y': 
-        fX = probe_radius
-        fY = 2*probe_radius
-        omegaX = probe_radius/2
-        probe_commands = amp * np.sinc(fX*Xacts)*np.sinc(fY*Yacts) * np.cos(2*np.pi*omegaX*Xacts + probe_phase) 
-    if probe_phase == 0:
-        f = 2*probe_radius
-        probe_commands = amp * np.sinc(f*Xacts)*np.sinc(f*Yacts)
-    return probe_commands
+def run_pwp(sysi, probes, jacobian, dark_mask, use_noise=False, display=False):
+    nmask = dark_mask.sum()
+    
+    dm_ref = sysi.get_dm()
+    amps = np.linspace(-1, 1, 2) # for generating a negative and positive probe
+    
+    Ip = []
+    In = []
+    for i,probe in enumerate(probes):
+        for amp in amps:
+            sysi.add_dm(amp*probe)
+            if sysi.is_model:
+                psf = np.abs(sysi.snap(bin_psf=True).get())**2
+            else:
+                psf = sysi.snap()
+                
+            if amp==-1: 
+                In.append(psf)
+            else: 
+                Ip.append(psf)
+                
+            sysi.add_dm(-amp*probe) # remove probe from DM
+            
+        if display:
+            misc.myimshow3(Ip[i], In[i], Ip[i]-In[i],
+                           'Probe {:d} Positive Image'.format(i+1), 'Probe {:d} Negative Image'.format(i+1),
+                           'Intensity Difference',
+                           lognorm1=True, lognorm2=True, 
+                          )
+        
+    E_probes = np.zeros((probes.shape[0], 2*nmask))
+    I_diff = np.zeros((probes.shape[0], nmask))
+    for i in range(len(probes)):
+        E_probe = jacobian.dot(np.array(probes[i].flatten())) # Use jacobian to model probe E-field at the focal plane
+        E_probe = E_probe[:nmask] + 1j*E_probe[nmask:]
+
+        E_probes[i, :nmask] = E_probe.real
+        E_probes[i, nmask:] = E_probe.imag
+
+        I_diff[i:(i+1), :] = (Ip[i] - In[i])[dark_mask]
+    
+    # Use batch process to estimate each pixel individually
+    E_est = np.zeros((nmask,), dtype=cp.complex128)
+    for i in range(nmask):
+        delI = I_diff[:, i]
+        M = 2*np.array([E_probes[:,i], E_probes[:,i+nmask]]).T
+        Minv = utils.TikhonovInverse(M, 1e-2)
+
+        est = Minv.dot(delI)
+
+        E_est[i] = est[0] + 1j*est[1]
+        
+    E_est_2d = np.zeros((sysi.npsf,sysi.npsf), dtype=np.complex128)
+    np.place(E_est_2d, mask=dark_mask, vals=E_est)
+    
+    return E_est_2d
 

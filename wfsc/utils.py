@@ -47,7 +47,8 @@ def create_annular_focal_plane_mask(x, y, params):
     
     r = np.hypot(x, y)
     mask = (r < outer_radius) * (r > inner_radius)
-    mask *= (x > edge_position)
+    if params['full']==False:
+        mask *= (x > edge_position)
         
     mask = ndimage.rotate(mask,rot, reshape=False, order=0)
     
