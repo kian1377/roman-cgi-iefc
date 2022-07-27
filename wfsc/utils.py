@@ -50,7 +50,7 @@ def create_annular_focal_plane_mask(x, y, params):
     if params['full']==False:
         mask *= (x > edge_position)
         
-    mask = ndimage.rotate(mask,rot, reshape=False, order=0)
+    mask = ndimage.rotate(mask, rot, reshape=False, order=0)
     
     return mask
 

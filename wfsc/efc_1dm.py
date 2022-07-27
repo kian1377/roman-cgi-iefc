@@ -8,15 +8,11 @@ from importlib import reload
 from IPython.display import clear_output
 import time
 import copy
-
-import poppy
+from importlib import reload
 
 from . import utils
-
-from importlib import reload
 reload(utils)
 
-# import misc
 from cgi_phasec_poppy import misc
 
 def build_jacobian(sysi, epsilon, dark_mask, display=False):
@@ -37,12 +33,13 @@ def build_jacobian(sysi, epsilon, dark_mask, display=False):
             for amp in amps:
                 mode = mode.reshape(sysi.Nact,sysi.Nact)
                 
-                sysi.add_dm(amp*mode)
+                sysi.add_dm1(amp*mode)
                 
-                wavefront = sysi.snap(bin_psf=True)
+                psf = sysi.calc_psf()
+                wavefront = psf.wavefront
                 response += amp*wavefront/np.var(amps)
                 
-                sysi.add_dm(-amp*mode)
+                sysi.add_dm1(-amp*mode)
 
             if display:
                 misc.myimshow2(cp.abs(response), cp.angle(response))
@@ -61,28 +58,25 @@ def build_jacobian(sysi, epsilon, dark_mask, display=False):
     
     return jacobian
 
-def run_pwp(sysi, probes, jacobian, dark_mask, use_noise=False, display=False):
+def run_pwp(sysi, probes, jacobian, dark_mask, reg_cond=1e-2, use_noise=False, display=False):
     nmask = dark_mask.sum()
     
-    dm_ref = sysi.get_dm()
+    dm_ref = sysi.get_dm1()
     amps = np.linspace(-1, 1, 2) # for generating a negative and positive probe
     
     Ip = []
     In = []
     for i,probe in enumerate(probes):
         for amp in amps:
-            sysi.add_dm(amp*probe)
-            if sysi.is_model:
-                psf = np.abs(sysi.snap(bin_psf=True).get())**2
-            else:
-                psf = sysi.snap()
+            sysi.add_dm1(amp*probe)
+            psf = sysi.snap()
                 
             if amp==-1: 
                 In.append(psf)
             else: 
                 Ip.append(psf)
                 
-            sysi.add_dm(-amp*probe) # remove probe from DM
+            sysi.add_dm1(-amp*probe) # remove probe from DM
             
         if display:
             misc.myimshow3(Ip[i], In[i], Ip[i]-In[i],
@@ -107,7 +101,7 @@ def run_pwp(sysi, probes, jacobian, dark_mask, use_noise=False, display=False):
     for i in range(nmask):
         delI = I_diff[:, i]
         M = 2*np.array([E_probes[:,i], E_probes[:,i+nmask]]).T
-        Minv = utils.TikhonovInverse(M, 1e-2)
+        Minv = utils.TikhonovInverse(M, reg_cond)
 
         est = Minv.dot(delI)
 
@@ -127,21 +121,16 @@ def run_efc_pwp(sysi, efc_matrix, jac, probes, dark_mask, efc_loop_gain=0.5, ite
     
     start=time.time()
     
-    dm_ref = sysi.get_dm()
+    dm_ref = sysi.get_dm1()
     dm_command = np.zeros((sysi.Nact, sysi.Nact)) 
     for i in range(iterations):
         print('\tRunning iteration {:d}/{:d}.'.format(i+1, iterations))
         
-        sysi.set_dm(dm_ref + dm_command)
+        sysi.set_dm1(dm_ref + dm_command)
         E_est = run_pwp(sysi, probes, jac, dark_mask)
+        I_exact = sysi.snap()
         
-        if sysi.is_model:
-            I_exact = sysi.snap().intensity.get()
-            I_exact = I_exact/I_exact.max() * 2**14
-        else:
-            I_exact = sysi.snap()
-        
-        commands.append(sysi.get_dm())
+        commands.append(sysi.get_dm1())
         efields.append(copy.copy(E_est))
         images.append(copy.copy(I_exact))
         
@@ -165,16 +154,17 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
     
     start = time.time()
     
-    dm_ref = sysi.get_dm()
+    dm_ref = sysi.get_dm1()
     dm_command = np.zeros((sysi.Nact, sysi.Nact)) 
     for i in range(iterations):
         print('\tRunning iteration {:d}/{:d}.'.format(i+1, iterations))
         
-        sysi.set_dm(dm_ref + dm_command) 
+        sysi.set_dm1(dm_ref + dm_command) 
         
-        electric_field = sysi.snap(bin_psf=True).get()
+        psf = sysi.calc_psf()
+        electric_field = psf.wavefront.get()
         
-        commands.append(sysi.get_dm())
+        commands.append(sysi.get_dm1())
         efields.append(copy.copy(electric_field))
         
         x = np.concatenate( (electric_field[dark_mask].real, electric_field[dark_mask].imag) )
