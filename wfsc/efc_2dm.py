@@ -50,9 +50,9 @@ def build_jacobian(sysi, epsilon, dark_mask, display=False):
             if display:
                 misc.myimshow2(cp.abs(response), cp.angle(response))
             
-            response1 = response1.flatten().get()[dark_mask.flatten()]
-            response2 = response2.flatten().get()[dark_mask.flatten()]
-            
+            response1 = response1.flatten().get()[dark_mask]
+            response2 = response2.flatten().get()[dark_mask]
+#             print(response1.shape)
         else:
             response1 = np.zeros((sysi.npsf, sysi.npsf), dtype=np.complex128).flatten()[dark_mask.flatten()]
             response2 = np.zeros((sysi.npsf, sysi.npsf), dtype=np.complex128).flatten()[dark_mask.flatten()]
@@ -173,13 +173,15 @@ def run_efc_pwp(sysi, efc_matrix, jac, probes, dark_mask, efc_loop_gain=0.5, ite
         efields.append(copy.copy(E_est))
         images.append(copy.copy(I_exact))
         
-        x = np.concatenate( (E_est[dark_mask].real, E_est[dark_mask].imag) )
+        if display:
+            misc.myimshow2(dm1_commands[i], dm2_commands[i], 'DM1', 'DM2')
+            misc.myimshow2(E_est[i], I_exact[i], 'DM1', 'DM2')
+        
+        x = np.concatenate( (E_est[dark_mask].imag, E_est[dark_mask].real) )
         y = efc_matrix.dot(x)
         
         dm_command -= efc_loop_gain * y.reshape(sysi.Nact,sysi.Nact)
         
-        if display:
-            misc.myimshow2(commands[i], abs(images[i])**2, lognorm2=True)
         
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
@@ -195,7 +197,8 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
     start = time.time()
     
     dm1_ref = sysi.get_dm1()
-    dm2_ref = sysi.get_dm1()
+    dm2_ref = sysi.get_dm2()
+    
     dm1_command = 0.0
     dm2_command = 0.0
     for i in range(iterations):
@@ -203,7 +206,6 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
         
         sysi.set_dm1(dm1_ref + dm1_command) 
         sysi.set_dm2(dm2_ref + dm2_command) 
-        
         psf = sysi.calc_psf()
         electric_field = psf.wavefront.get()
         
@@ -211,16 +213,16 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
         dm2_commands.append(sysi.get_dm2())
         efields.append(copy.copy(electric_field))
         
+        if display:
+            misc.myimshow3(dm1_commands[i], dm2_commands[i], np.abs(electric_field)**2, 
+                           'DM1', 'DM2', 'Image',
+                           lognorm3=True, vmin3=1e-12)
+        
         x = np.concatenate( (electric_field[dark_mask].real, electric_field[dark_mask].imag) )
         del_dms = efc_matrix.dot(x)
         
-        dm1_command -= efc_loop_gain * del_dms[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
-        dm2_command -= efc_loop_gain * del_dms[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
-        
-        if display:
-            misc.myimshow3(dm1_command, dm2_command, np.abs(electric_field)**2, 
-                           'DM1', 'DM2', 'Image', 
-                           lognorm3=True, vmin3=1e-12)
+        dm1_command -= efc_loop_gain * del_dms[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
+        dm2_command -= efc_loop_gain * del_dms[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
         
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
