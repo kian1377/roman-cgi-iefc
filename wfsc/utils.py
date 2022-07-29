@@ -60,4 +60,31 @@ def create_box_focal_plane_mask(x, y, params):
     return mask > 0
 
 
-
+def create_bowtie_mask(x, y, params):
+    inner_radius, outer_radius, side = (params['inner_radius'], params['outer_radius'], params['side'])
+    
+    r = np.hypot(x, y)
+    th = np.arctan2(x,y)*180/np.pi + 180
+    
+    mask = (r < outer_radius) * (r > inner_radius)
+    
+    if side=='left' or side=='l':
+        mask *= (th>57.5) * (th<57.5+65)
+    elif side=='right' or side=='r':
+        mask *= (th<(360-57.5)) * (th>(360-57.5-65))
+    if side=='both' or side=='b':
+        mask *= (th>57.5) * (th<57.5+65) + (th<(360-57.5)) * (th>(360-57.5-65))
+    
+    return mask
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

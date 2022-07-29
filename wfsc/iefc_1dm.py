@@ -234,7 +234,9 @@ def run(sysi, control_matrix, probe_modes, probe_amplitude, calibration_modes, w
         metric_images.append(copy.copy(image))
         dm_commands.append(sysi.get_dm1())
         
-        if display: misc.myimshow2(dm_commands[i], image, lognorm2=True, vmin2=image.max()/1e6)
+        if display: misc.myimshow2(dm_commands[i], image, 
+                                   'DM', 'Image: Iteration {:d}'.format(i),
+                                   lognorm2=True, vmin2=image.max()/1e6)
             
     print('I-EFC loop completed in {:.3f}s.'.format(time.time()-start))
     return metric_images, dm_commands

@@ -215,7 +215,7 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
         
         if display:
             misc.myimshow3(dm1_commands[i], dm2_commands[i], np.abs(electric_field)**2, 
-                           'DM1', 'DM2', 'Image',
+                           'DM1', 'DM2', 'Image: Iteration {:d}'.format(i),
                            lognorm3=True, vmin3=1e-12)
         
         x = np.concatenate( (electric_field[dark_mask].real, electric_field[dark_mask].imag) )

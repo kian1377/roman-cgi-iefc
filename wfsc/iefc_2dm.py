@@ -168,14 +168,14 @@ def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibra
                 sysi.add_dm1(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) # remove the mode
                 
                 # DM2: Set the DM to the correct state
-                sysi.add_dm1(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
-                differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=2, 
+                sysi.add_dm2(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
+                differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1, 
                                                                           return_all=True)
                 
                 images_2.append(single_images_2)
                 slope2 += s * differential_images_2 / (2 * calibration_amplitude)
                 
-                sysi.add_dm1(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) 
+                sysi.add_dm2(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) 
                 
             print("\tCalibrated mode {:d} / {:d} in {:.3f}s".format(ci+1+start_mode, calibration_modes.shape[0], 
                                                                     time.time()-start))
@@ -277,8 +277,8 @@ def run(sysi, control_matrix, probe_modes, probe_amplitude, calibration_modes, w
         dm2_commands.append(sysi.get_dm2())
         
         if display: 
-            misc.myimshow3(dm1_command, dm2_command, image, 
-                           'DM1', 'DM2', 'PSF',
+            misc.myimshow3(dm1_commands[i], dm2_commands[i], image, 
+                           'DM1', 'DM2', 'Image: Iteration {:d}'.format(i+1),
                            lognorm3=True, pxscl3=sysi.psf_pixelscale.to(u.mm/u.pix))
     print('I-EFC loop completed in {:.3f}s.'.format(time.time()-start))
     return metric_images, dm1_commands, dm2_commands

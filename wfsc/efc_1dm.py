@@ -173,7 +173,9 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
         dm_command -= efc_loop_gain * del_dm
         
         if display:
-            misc.myimshow2(commands[i], abs(efields[i])**2, lognorm2=True)
+            misc.myimshow2(commands[i], abs(efields[i])**2,
+                           'DM', 'Image: Iteration {:d}'.format(i), 
+                           lognorm2=True)
         
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
