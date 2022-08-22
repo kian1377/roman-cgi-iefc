@@ -18,7 +18,7 @@ from . import utils
 from importlib import reload
 reload(utils)
 
-import misc
+from cgi_phasec_poppy import misc
 
 def create_fourier_modes(xfp, mask, Nact=34, use_both=True, circular_mask=True):
     print("Creating Fourier modes: ", mask.shape)

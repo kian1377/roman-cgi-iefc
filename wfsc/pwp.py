@@ -9,7 +9,7 @@ if poppy.accel_math._USE_CUPY:
     import cupy as cp
 from .import scoob
 
-import misc
+from cgi_phasec_poppy import misc
 
 def run_pwp(DM, wavelength, Npairs, dark_zone, score_zone, 
             probe_radius=12, probe_offsets=(0,0), probe_axis='alternate', 

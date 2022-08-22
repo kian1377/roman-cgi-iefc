@@ -12,7 +12,7 @@ from astropy.io import fits
 from matplotlib.patches import Circle, Rectangle
 import pickle
 
-import misc
+from cgi_phasec_poppy import misc
 
 # Create control matrix
 def WeightedLeastSquares(A, W, rcond=1e-15):
