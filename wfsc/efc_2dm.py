@@ -52,7 +52,6 @@ def build_jacobian(sysi, epsilon, dark_mask, display=False):
             
             response1 = response1.flatten().get()[dark_mask]
             response2 = response2.flatten().get()[dark_mask]
-#             print(response1.shape)
         else:
             response1 = np.zeros((sysi.npsf, sysi.npsf), dtype=np.complex128).flatten()[dark_mask.flatten()]
             response2 = np.zeros((sysi.npsf, sysi.npsf), dtype=np.complex128).flatten()[dark_mask.flatten()]

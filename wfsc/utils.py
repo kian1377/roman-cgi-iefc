@@ -27,6 +27,16 @@ def TikhonovInverse(A, rcond=1e-15):
     s_inv = s/(s**2 + (rcond * s.max())**2)
     return (Vt.T * s_inv).dot(U.T)
 
+def jpl_reg(S, beta=-1):
+    # S is the sensitivity matrix also known as the Jacobian
+    sts = cp.matmul(S.T, S)
+    rho = cp.diag(sts)
+    alpha_sq = rho.max()
+
+    gain_matrix = cp.matmul( cp.linalg.inv( sts + alpha_sq*10**(beta)*cp.eye(sts.shape[0]) ), S.T)
+    return gain_matrix
+
+
 def create_circ_mask(h, w, center=None, radius=None):
 
     if center is None: # use the middle of the image
