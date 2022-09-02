@@ -208,6 +208,10 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
         psf = sysi.calc_psf()
         electric_field = psf.wavefront.get()
         
+        # evaluate contrast
+        intensity = np.abs(electric_field)**2 * dark_mask
+        C = intensity.sum()
+        
         dm1_commands.append(sysi.get_dm1())
         dm2_commands.append(sysi.get_dm2())
         efields.append(copy.copy(electric_field))

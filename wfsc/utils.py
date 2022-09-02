@@ -32,7 +32,8 @@ def jpl_reg(S, beta=-1):
     sts = cp.matmul(S.T, S)
     rho = cp.diag(sts)
     alpha_sq = rho.max()
-
+    print(alpha_sq)
+    
     gain_matrix = cp.matmul( cp.linalg.inv( sts + alpha_sq*10**(beta)*cp.eye(sts.shape[0]) ), S.T)
     return gain_matrix
 

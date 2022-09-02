@@ -10,12 +10,14 @@ import time
 import copy
 from importlib import reload
 
+import cgi_phasec_poppy as cgi
+
 from . import utils
 reload(utils)
 
 from cgi_phasec_poppy import misc
 
-def build_jacobian(sysi, epsilon, dark_mask, display=False):
+def build_jacobian(sysi, wavelengths, epsilon, dark_mask, display=False):
     start = time.time()
     print('Building Jacobian.')
     
@@ -28,50 +30,61 @@ def build_jacobian(sysi, epsilon, dark_mask, display=False):
     num_modes = sysi.Nact**2
     modes = np.eye(num_modes) # each column in this matrix represents a vectorized DM shape where one actuator has been poked
     
-    for i, mode in enumerate(modes):
-        if dm_mask[i]==1:
-            response1 = 0
-            response2 = 0
-            for amp in amps:
-                mode = mode.reshape(sysi.Nact,sysi.Nact)
-                
-                sysi.add_dm1(amp*mode)
-                psf = sysi.calc_psf()
-                wavefront = psf.wavefront
-                response1 += amp*wavefront/np.var(amps)
-                sysi.add_dm1(-amp*mode)
-                
-                sysi.add_dm2(amp*mode)
-                psf = sysi.calc_psf()
-                wavefront = psf.wavefront
-                response2 += amp*wavefront/np.var(amps)
-                sysi.add_dm2(-amp*mode)
-
-            if display:
-                misc.myimshow2(cp.abs(response), cp.angle(response))
-            
-            response1 = response1.flatten().get()[dark_mask]
-            response2 = response2.flatten().get()[dark_mask]
-#             print(response1.shape)
-        else:
-            response1 = np.zeros((sysi.npsf, sysi.npsf), dtype=np.complex128).flatten()[dark_mask.flatten()]
-            response2 = np.zeros((sysi.npsf, sysi.npsf), dtype=np.complex128).flatten()[dark_mask.flatten()]
-
-        responses_1.append(np.concatenate((response1.real, response1.imag)))
-        responses_2.append(np.concatenate((response2.real, response2.imag)))
+    for wavelength in wavelengths:
+        sysi.wavelength = wavelength
+        print('Calculating sensitivity for wavelength {:.3e}'.format(wavelength))
         
-        print('\tCalculated response for mode {:d}/{:d}. Elapsed time={:.3f} sec.'.format(i+1,num_modes,time.time()-start))
+        for i, mode in enumerate(modes):
+            mode = mode.reshape(sysi.Nact,sysi.Nact)
+            if dm_mask[i]==1:
+                response1 = 0
+                response2 = 0
+                for amp in amps:
+                    sysi.add_dm1(amp*mode)
+                    psf = sysi.calc_psf()
+                    wavefront = psf.wavefront
+                    response1 += amp*wavefront/np.var(amps)
+                    sysi.add_dm1(-amp*mode)
+
+                    sysi.add_dm2(amp*mode)
+                    psf = sysi.calc_psf()
+                    wavefront = psf.wavefront
+                    response2 += amp*wavefront/np.var(amps)
+                    sysi.add_dm2(-amp*mode)
+                
+                response1 = response1.flatten().get()[dark_mask]
+                response2 = response2.flatten().get()[dark_mask]
+            else:
+                response1 = np.zeros((sysi.npsf, sysi.npsf), dtype=np.complex128).flatten()[dark_mask.flatten()]
+                response2 = np.zeros((sysi.npsf, sysi.npsf), dtype=np.complex128).flatten()[dark_mask.flatten()]
+
+            responses_1.append(np.concatenate((response1.real, response1.imag)))
+            responses_2.append(np.concatenate((response2.real, response2.imag)))
+
+            print('\tCalculated response for mode {:d}/{:d}. Elapsed time={:.3f} sec.'.format(i+1,num_modes,time.time()-start))
         
     responses_1 = np.array(responses_1)
     responses_2 = np.array(responses_2)
-    print(responses_1.shape, responses_2.shape)
-    
     responses = np.concatenate( ( responses_1, responses_2 ), axis=0 )
-    print(responses.shape)
+    
     jacobian = responses.T
+    
+    # Adjust the Jacobian so it has the appropriate dimensions for the matrix problem
+    jac_dm1 = jacobian[:,:int(sys.Nact**2*len(wavelengths))]
+    jac_dm2 = jacobian[:,int(sys.Nact**2*len(wavelengths)):]
+    
+    for i in range(len(wavelengths)):
+        jac_dm1_new = jac_dm1[:,:sys.Nact**2] if i==0 else np.concatenate((jac_dm1_new, 
+                                                                           jac_dm1[:,i*sys.Nact**2:(i+1)*sys.Nact**2]),
+                                                                          axis=0)
+        jac_dm2_new = jac_dm2[:,:sys.Nact**2] if i==0 else np.concatenate((jac_dm2_new, 
+                                                                           jac_dm2[:,i*sys.Nact**2:(i+1)*sys.Nact**2]),
+                                                                          axis=0)
+
+    fixed_jacobian = np.concatenate( (jac_dm1_new, jac_dm2_new) , axis=1 )
     print('Jacobian built in {:.3f} sec'.format(time.time()-start))
     
-    return jacobian
+    return fixed_jacobian
 
 def run_pwp(sysi, probes, jacobian, dark_mask, reg_cond=1e-2, use_noise=False, display=False):
     nmask = dark_mask.sum()
@@ -187,12 +200,12 @@ def run_efc_pwp(sysi, efc_matrix, jac, probes, dark_mask, efc_loop_gain=0.5, ite
     
     return commands, efields, images
 
-def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5, display=False):
+def run_efc_perfect(sysi, wavelengths, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5, display=False):
     # This function is only for running EFC simulations
     print('Beginning closed-loop EFC simulation.')    
     dm1_commands = []
     dm2_commands = []
-    efields = []
+    images = []
     
     start = time.time()
     
@@ -206,19 +219,27 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
         
         sysi.set_dm1(dm1_ref + dm1_command) 
         sysi.set_dm2(dm2_ref + dm2_command) 
-        psf = sysi.calc_psf()
-        electric_field = psf.wavefront.get()
         
+        psf_bb = 0
+        electric_fields = [] # contains the e-field for each discrete wavelength
+        for wavelength in wavelengths:
+            sysi.wavelength = wavelength
+            psf = sysi.calc_psf()
+            electric_fields.append(psf.wavefront[dark_mask].get())
+            psf_bb += psf.intensity.get()
+            
         dm1_commands.append(sysi.get_dm1())
         dm2_commands.append(sysi.get_dm2())
-        efields.append(copy.copy(electric_field))
+        images.append(copy.copy(psf_bb))
         
         if display:
-            misc.myimshow3(dm1_commands[i], dm2_commands[i], np.abs(electric_field)**2, 
+            misc.myimshow3(dm1_commands[i], dm2_commands[i], psf_bb, 
                            'DM1', 'DM2', 'Image: Iteration {:d}'.format(i),
                            lognorm3=True, vmin3=1e-12)
         
-        x = np.concatenate( (electric_field[dark_mask].real, electric_field[dark_mask].imag) )
+        for i in range(len(wavelengths)):
+            xnew = np.concatenate( (electric_fields[i].real, electric_fields[i].imag) )
+            x = xnew if i==0 else np.concatenate( (x,xnew) )
         del_dms = efc_matrix.dot(x)
         
         dm1_command -= efc_loop_gain * del_dms[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
@@ -226,7 +247,7 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
         
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
-    return dm1_commands, dm2_commands, efields
+    return dm1_commands, dm2_commands, images
 
 def create_sinc_probe(Nacts, amp, probe_radius, probe_phase=0, offset=(0,0), bad_axis='x'):
     print('Generating probe with amplitude={:.3e}, radius={:.1f}, phase={:.3f}, offset=({:.1f},{:.1f}), with discontinuity along '.format(amp, probe_radius, probe_phase, offset[0], offset[1]) + bad_axis + ' axis.')
