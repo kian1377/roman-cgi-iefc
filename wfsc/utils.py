@@ -28,7 +28,7 @@ def TikhonovInverse(A, rcond=1e-15):
     return (Vt.T * s_inv).dot(U.T)
 
 def jpl_reg(S, beta=-1):
-    # S is the sensitivity matrix also known as the Jacobian
+    # S is the sensitivity matrix, also known as the Jacobian
     sts = cp.matmul(S.T, S)
     rho = cp.diag(sts)
     alpha_sq = rho.max()

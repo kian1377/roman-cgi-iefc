@@ -5,7 +5,7 @@ import astropy.units as u
 from astropy.io import fits
 from pathlib import Path
 from importlib import reload
-from IPython.display import clear_output
+from IPython.display import clear_output, display
 import time
 import copy
 from importlib import reload
@@ -186,14 +186,26 @@ def run_efc_pwp(sysi, efc_matrix, jac, probes, dark_mask, efc_loop_gain=0.5, ite
     
     return commands, efields, images
 
-def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5, display=False):
+def run_efc_perfect(sysi, 
+                    jac, 
+                    efc_matrix, 
+                    dark_mask, 
+                    Imax_unocc,
+                    efc_loop_gain=0.5, 
+                    iterations=5, 
+                    display=False, 
+                    plot_sms=True):
     # This function is only for running EFC simulations
-    print('Beginning closed-loop EFC simulation.')    
+    print('Beginning closed-loop EFC simulation.')
     dm1_commands = []
     dm2_commands = []
     efields = []
     
     start = time.time()
+    
+    U, s, V = cp.linalg.svd(jac, full_matrices=False)
+    alpha2 = cp.max( cp.diag( cp.real( jac.conj().T @ jac ) ) )
+    N_DH = dark_mask.sum()
     
     dm1_ref = sysi.get_dm1()
     dm2_ref = sysi.get_dm2()
@@ -221,15 +233,60 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
                            'DM1', 'DM2', 'Image: Iteration {:d}'.format(i),
                            lognorm3=True, vmin3=1e-12)
         
-        x = np.concatenate( (electric_field[dark_mask].real, electric_field[dark_mask].imag) )
-        del_dms = efc_matrix.dot(x)
+        efield_ri = np.concatenate( (electric_field[dark_mask].real, electric_field[dark_mask].imag) )
+        del_dms = efc_matrix.dot(efield_ri)
         
         dm1_command -= efc_loop_gain * del_dms[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
         dm2_command -= efc_loop_gain * del_dms[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
         
+        if plot_sms:
+            sms(U, s, alpha2, cp.array(efield_ri), N_DH, Imax_unocc)
+        
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
     return dm1_commands, dm2_commands, efields
+
+def sms(U, s, alpha2, electric_field, N_DH, Imax_unocc): 
+    # jac: system jacobian
+    # electric_field: the electric field acquired by estimation or from the model
+    print(alpha2)
+    print(s.shape, U.shape, U.conj().T.shape)
+    print(electric_field.shape)
+    
+#     E_ri = U.conj().T @ electric_field
+#     I_ri = cp.abs(E_ri)**2
+#     print(I_ri.shape)
+
+    E_ri = U.conj().T.dot(electric_field)
+    SMS = cp.abs(E_ri)**2/(N_DH/2*Imax_unocc)
+    print(SMS.shape)
+    
+    Nbox = 31
+    box = cp.ones(Nbox)/Nbox
+    SMS_smooth = cp.convolve(SMS, box, mode='same')
+    
+    x = (s**2/alpha2).get()
+    y = SMS_smooth.get()
+    
+#     print(I_ri_smooth)
+#     contrast = np.trapz(y, x)
+#     print(contrast)
+    
+    xmax = np.max(x)
+    xmin = 1e-10 
+    ymax = 1
+    ymin = 1e-14
+    
+    fig = plt.figure(dpi=125)
+    plt.loglog(x, y)
+    plt.title('Singular Mode Spectrum')
+    plt.xlim(xmin, xmax)
+    plt.ylim(ymin, ymax)
+    plt.xlabel('(s_{i}/\{alpha})^2: Square of Normalized Singular Values')
+    plt.ylabel('SMS')
+    plt.grid()
+    display(fig)
+    plt.close()
 
 def create_sinc_probe(Nacts, amp, probe_radius, probe_phase=0, offset=(0,0), bad_axis='x'):
     print('Generating probe with amplitude={:.3e}, radius={:.1f}, phase={:.3f}, offset=({:.1f},{:.1f}), with discontinuity along '.format(amp, probe_radius, probe_phase, offset[0], offset[1]) + bad_axis + ' axis.')
@@ -274,5 +331,6 @@ def create_sinc_probes(Npairs, Nacts, dm_mask, probe_amplitude, probe_radius=10,
             misc.myimshow3(probes[0], probes[1], probes[2])
     
     return np.array(probes)
+
 
 

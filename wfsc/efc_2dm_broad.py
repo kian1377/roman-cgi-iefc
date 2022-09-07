@@ -245,9 +245,24 @@ def run_efc_perfect(sysi, wavelengths, efc_matrix, dark_mask, efc_loop_gain=0.5,
         dm1_command -= efc_loop_gain * del_dms[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
         dm2_command -= efc_loop_gain * del_dms[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
         
+        if plot_sms:
+            sms(jac, efield_ri)
+            
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
     return dm1_commands, dm2_commands, images
+
+
+def sms(jac, electric_field): 
+    # jac: system jacobian
+    # electric_field: the electric field acquired by estimation or form the model
+    
+    U, s, V = np.linalg.svd(jac, full_matrices=False)
+    
+    print(U.shape, U.conj().T.shape, electric_field.shape)
+    
+    EriPrime = U.conj().T @ electric_field
+    IriPrime = np.abs(EriPrime)**2
 
 def create_sinc_probe(Nacts, amp, probe_radius, probe_phase=0, offset=(0,0), bad_axis='x'):
     print('Generating probe with amplitude={:.3e}, radius={:.1f}, phase={:.3f}, offset=({:.1f},{:.1f}), with discontinuity along '.format(amp, probe_radius, probe_phase, offset[0], offset[1]) + bad_axis + ' axis.')

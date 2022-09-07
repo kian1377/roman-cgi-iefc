@@ -4,7 +4,7 @@ import astropy.units as u
 from astropy.io import fits
 from matplotlib.patches import Rectangle, Circle
 
-import os
+import os, shutil
 from pathlib import Path
 from IPython.display import clear_output
 from importlib import reload
