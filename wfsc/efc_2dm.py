@@ -188,12 +188,14 @@ def run_efc_pwp(sysi, efc_matrix, jac, probes, dark_mask, efc_loop_gain=0.5, ite
 
 def run_efc_perfect(sysi, 
                     jac, 
-                    efc_matrix, 
+                    reg_fun,
+                    reg_conds,
                     dark_mask, 
                     Imax_unocc,
                     efc_loop_gain=0.5, 
                     iterations=5, 
-                    display=False, 
+                    display_all=False, 
+                    display_current=True,
                     plot_sms=True):
     # This function is only for running EFC simulations
     print('Beginning closed-loop EFC simulation.')
@@ -203,8 +205,13 @@ def run_efc_perfect(sysi,
     
     start = time.time()
     
+    jac = cp.array(jac) if isinstance(jac, np.ndarray) else jac
+    
     U, s, V = cp.linalg.svd(jac, full_matrices=False)
     alpha2 = cp.max( cp.diag( cp.real( jac.conj().T @ jac ) ) )
+    print('Max singular value squared:\t', s.max()**2)
+    print('alpha^2:\t\t\t', alpha2) 
+    
     N_DH = dark_mask.sum()
     
     dm1_ref = sysi.get_dm1()
@@ -212,8 +219,15 @@ def run_efc_perfect(sysi,
     
     dm1_command = 0.0
     dm2_command = 0.0
-    for i in range(iterations):
-        print('\tRunning iteration {:d}/{:d}.'.format(i+1, iterations))
+    print()
+    for i in range(iterations+1):
+        print('\tRunning iteration {:d}/{:d}.'.format(i, iterations))
+            
+        if i==0 or i in reg_conds[0]:
+            reg_cond_ind = np.argwhere(i==reg_conds[0])[0][0]
+            reg_cond = reg_conds[1, reg_cond_ind]
+            print('\tComputing EFC matrix via ' + reg_fun.__name__ + ' with condition value {:.2e}'.format(reg_cond))
+            efc_matrix = reg_fun(jac, reg_cond).get()
         
         sysi.set_dm1(dm1_ref + dm1_command) 
         sysi.set_dm2(dm2_ref + dm2_command) 
@@ -228,10 +242,15 @@ def run_efc_perfect(sysi,
         dm2_commands.append(sysi.get_dm2())
         efields.append(copy.copy(electric_field))
         
-        if display:
+        if not display_all: 
+            clear_output(wait=True)
+            time.sleep(0.25)
+            
+        if display_current or display_all:
             misc.myimshow3(dm1_commands[i], dm2_commands[i], np.abs(electric_field)**2, 
                            'DM1', 'DM2', 'Image: Iteration {:d}'.format(i),
-                           lognorm3=True, vmin3=1e-12)
+                           lognorm3=True, vmin3=1e-12,
+                           return_fig=True)
         
         efield_ri = np.concatenate( (electric_field[dark_mask].real, electric_field[dark_mask].imag) )
         del_dms = efc_matrix.dot(efield_ri)
@@ -240,18 +259,18 @@ def run_efc_perfect(sysi,
         dm2_command -= efc_loop_gain * del_dms[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
         
         if plot_sms:
-            sms(U, s, alpha2, cp.array(efield_ri), N_DH, Imax_unocc)
-        
+            sms(U, s, alpha2, cp.array(efield_ri), N_DH, Imax_unocc, i)
+            
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
     return dm1_commands, dm2_commands, efields
 
-def sms(U, s, alpha2, electric_field, N_DH, Imax_unocc): 
+def sms(U, s, alpha2, electric_field, N_DH, Imax_unocc, itr): 
     # jac: system jacobian
     # electric_field: the electric field acquired by estimation or from the model
-    print(alpha2)
-    print(s.shape, U.shape, U.conj().T.shape)
-    print(electric_field.shape)
+#     print(alpha2)
+#     print(s.shape, U.shape, U.conj().T.shape)
+#     print(electric_field.shape)
     
 #     E_ri = U.conj().T @ electric_field
 #     I_ri = cp.abs(E_ri)**2
@@ -259,7 +278,7 @@ def sms(U, s, alpha2, electric_field, N_DH, Imax_unocc):
 
     E_ri = U.conj().T.dot(electric_field)
     SMS = cp.abs(E_ri)**2/(N_DH/2*Imax_unocc)
-    print(SMS.shape)
+#     print(SMS.shape)
     
     Nbox = 31
     box = cp.ones(Nbox)/Nbox
@@ -279,10 +298,10 @@ def sms(U, s, alpha2, electric_field, N_DH, Imax_unocc):
     
     fig = plt.figure(dpi=125)
     plt.loglog(x, y)
-    plt.title('Singular Mode Spectrum')
+    plt.title('Singular Mode Spectrum: Iteration {:d}'.format(itr))
     plt.xlim(xmin, xmax)
     plt.ylim(ymin, ymax)
-    plt.xlabel('(s_{i}/\{alpha})^2: Square of Normalized Singular Values')
+    plt.xlabel(r'$(s_{i}/\alpha)^2$: Square of Normalized Singular Values')
     plt.ylabel('SMS')
     plt.grid()
     display(fig)

@@ -135,7 +135,7 @@ for i in range(n_calibrations):
     dm1_acts.append(dm1_commands)
     dm2_acts.append(dm2_commands)
 
-misc.save_pickle(iefc_dir/data_set_name/'reponse_cubes', reponse_cubes)
+misc.save_pickle(iefc_dir/data_set_name/'response_cubes', response_cubes)
 misc.save_pickle(iefc_dir/data_set_name/'images', images)
 misc.save_pickle(iefc_dir/data_set_name/'dm1_acts', dm1_acts)
 misc.save_pickle(iefc_dir/data_set_name/'dm2_acts', dm2_acts)
