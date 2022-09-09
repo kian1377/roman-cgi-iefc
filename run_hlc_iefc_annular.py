@@ -26,7 +26,7 @@ from wfsc import iefc_2dm as iefc
 from wfsc import utils
 
 # Set the name for this iteration of simulation
-data_set_name = 'hlc_annular_iefc_sim_v1'
+data_set_name = 'hlc_annular_iefc_39_sim_v1'
 
 iefc_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
 
@@ -57,7 +57,7 @@ xf,yf = np.meshgrid(xfp,xfp)
 
 edge = 1
 iwa = 3
-owa = 6
+owa = 9
 rot = 0
 
 # Create the dark-hole mask.
@@ -134,6 +134,11 @@ for i in range(n_calibrations):
     images.append(ims)
     dm1_acts.append(dm1_commands)
     dm2_acts.append(dm2_commands)
+
+response_cubes = np.array(response_cubes)
+images = cp.array(images).get()
+dm1_acts = np.array(dm1_acts)
+dm2_acts = np.array(dm2_acts)
 
 misc.save_pickle(iefc_dir/data_set_name/'response_cubes', response_cubes)
 misc.save_pickle(iefc_dir/data_set_name/'images', images)

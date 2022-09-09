@@ -200,7 +200,18 @@ def run_efc_pwp(sysi, efc_matrix, jac, probes, dark_mask, efc_loop_gain=0.5, ite
     
     return commands, efields, images
 
-def run_efc_perfect(sysi, wavelengths, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5, display=False):
+def run_efc_perfect(sysi, 
+                    wavelengths, 
+                    jac, 
+                    reg_fun,
+                    reg_conds,
+                    dark_mask, 
+                    Imax_unocc,
+                    efc_loop_gain=0.5, 
+                    iterations=5, 
+                    display_all=False, 
+                    display_current=True,
+                    plot_sms=True):
     # This function is only for running EFC simulations
     print('Beginning closed-loop EFC simulation.')    
     dm1_commands = []
@@ -209,13 +220,29 @@ def run_efc_perfect(sysi, wavelengths, efc_matrix, dark_mask, efc_loop_gain=0.5,
     
     start = time.time()
     
+    jac = cp.array(jac) if isinstance(jac, np.ndarray) else jac
+    
+    U, s, V = cp.linalg.svd(jac, full_matrices=False)
+    alpha2 = cp.max( cp.diag( cp.real( jac.conj().T @ jac ) ) )
+    print('Max singular value squared:\t', s.max()**2)
+    print('alpha^2:\t\t\t', alpha2) 
+    
+    N_DH = dark_mask.sum()
+    
     dm1_ref = sysi.get_dm1()
     dm2_ref = sysi.get_dm2()
     
     dm1_command = 0.0
     dm2_command = 0.0
-    for i in range(iterations):
+    print()
+    for i in range(iterations+1):
         print('\tRunning iteration {:d}/{:d}.'.format(i+1, iterations))
+        
+        if i==0 or i in reg_conds[0]:
+            reg_cond_ind = np.argwhere(i==reg_conds[0])[0][0]
+            reg_cond = reg_conds[1, reg_cond_ind]
+            print('\tComputing EFC matrix via ' + reg_fun.__name__ + ' with condition value {:.2e}'.format(reg_cond))
+            efc_matrix = reg_fun(jac, reg_cond).get()
         
         sysi.set_dm1(dm1_ref + dm1_command) 
         sysi.set_dm2(dm2_ref + dm2_command) 
@@ -232,37 +259,70 @@ def run_efc_perfect(sysi, wavelengths, efc_matrix, dark_mask, efc_loop_gain=0.5,
         dm2_commands.append(sysi.get_dm2())
         images.append(copy.copy(psf_bb))
         
-        if display:
-            misc.myimshow3(dm1_commands[i], dm2_commands[i], psf_bb, 
-                           'DM1', 'DM2', 'Image: Iteration {:d}'.format(i),
-                           lognorm3=True, vmin3=1e-12)
-        
-        for i in range(len(wavelengths)):
-            xnew = np.concatenate( (electric_fields[i].real, electric_fields[i].imag) )
-            x = xnew if i==0 else np.concatenate( (x,xnew) )
+        for j in range(len(wavelengths)):
+            xnew = np.concatenate( (electric_fields[j].real, electric_fields[j].imag) )
+            x = xnew if j==0 else np.concatenate( (x,xnew) )
         del_dms = efc_matrix.dot(x)
         
         dm1_command -= efc_loop_gain * del_dms[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
         dm2_command -= efc_loop_gain * del_dms[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
         
-        if plot_sms:
-            sms(jac, efield_ri)
+        if display_current or display_all:
+            if not display_all: clear_output(wait=True)
+                
+            fig,ax = misc.myimshow3(dm1_commands[i], dm2_commands[i], np.abs(electric_field)**2, 
+                                        'DM1', 'DM2', 'Image: Iteration {:d}'.format(i),
+                                        lognorm3=True, vmin3=1e-12,
+                                        return_fig=True, display_fig=True)
+            if plot_sms:
+                sms_fig = sms(U, s, alpha2, cp.array(efield_ri), N_DH, Imax_unocc, i)
             
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
     return dm1_commands, dm2_commands, images
 
 
-def sms(jac, electric_field): 
+def sms(U, s, alpha2, electric_field, N_DH, Imax_unocc, itr): 
     # jac: system jacobian
-    # electric_field: the electric field acquired by estimation or form the model
+    # electric_field: the electric field acquired by estimation or from the model
+#     print(alpha2)
+#     print(s.shape, U.shape, U.conj().T.shape)
+#     print(electric_field.shape)
     
-    U, s, V = np.linalg.svd(jac, full_matrices=False)
+#     E_ri = U.conj().T @ electric_field
+#     I_ri = cp.abs(E_ri)**2
+#     print(I_ri.shape)
+
+    E_ri = U.conj().T.dot(electric_field)
+    SMS = cp.abs(E_ri)**2/(N_DH/2*Imax_unocc)
+#     print(SMS.shape)
     
-    print(U.shape, U.conj().T.shape, electric_field.shape)
+    Nbox = 31
+    box = cp.ones(Nbox)/Nbox
+    SMS_smooth = cp.convolve(SMS, box, mode='same')
     
-    EriPrime = U.conj().T @ electric_field
-    IriPrime = np.abs(EriPrime)**2
+    x = (s**2/alpha2).get()
+    y = SMS_smooth.get()
+    
+#     print(I_ri_smooth)
+#     contrast = np.trapz(y, x)
+#     print(contrast)
+    
+    xmax = np.max(x)
+    xmin = 1e-10 
+    ymax = 1
+    ymin = 1e-14
+    
+    fig = plt.figure(dpi=125)
+    plt.loglog(x, y)
+    plt.title('Singular Mode Spectrum: Iteration {:d}'.format(itr))
+    plt.xlim(xmin, xmax)
+    plt.ylim(ymin, ymax)
+    plt.xlabel(r'$(s_{i}/\alpha)^2$: Square of Normalized Singular Values')
+    plt.ylabel('SMS')
+    plt.grid()
+    display(fig)
+    plt.close()
 
 def create_sinc_probe(Nacts, amp, probe_radius, probe_phase=0, offset=(0,0), bad_axis='x'):
     print('Generating probe with amplitude={:.3e}, radius={:.1f}, phase={:.3f}, offset=({:.1f},{:.1f}), with discontinuity along '.format(amp, probe_radius, probe_phase, offset[0], offset[1]) + bad_axis + ' axis.')

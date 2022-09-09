@@ -234,32 +234,26 @@ def run_efc_perfect(sysi,
         psf = sysi.calc_psf()
         electric_field = psf.wavefront.get()
         
-        # evaluate contrast
-        intensity = np.abs(electric_field)**2 * dark_mask
-        C = intensity.sum()
-        
         dm1_commands.append(sysi.get_dm1())
         dm2_commands.append(sysi.get_dm2())
         efields.append(copy.copy(electric_field))
-        
-        if not display_all: 
-            clear_output(wait=True)
-            time.sleep(0.25)
             
-        if display_current or display_all:
-            misc.myimshow3(dm1_commands[i], dm2_commands[i], np.abs(electric_field)**2, 
-                           'DM1', 'DM2', 'Image: Iteration {:d}'.format(i),
-                           lognorm3=True, vmin3=1e-12,
-                           return_fig=True)
-        
         efield_ri = np.concatenate( (electric_field[dark_mask].real, electric_field[dark_mask].imag) )
         del_dms = efc_matrix.dot(efield_ri)
         
         dm1_command -= efc_loop_gain * del_dms[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
         dm2_command -= efc_loop_gain * del_dms[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
         
-        if plot_sms:
-            sms(U, s, alpha2, cp.array(efield_ri), N_DH, Imax_unocc, i)
+        if display_current or display_all:
+            if not display_all: clear_output(wait=True)
+                
+            fig,ax = misc.myimshow3(dm1_commands[i], dm2_commands[i], np.abs(electric_field)**2, 
+                                        'DM1', 'DM2', 'Image: Iteration {:d}'.format(i),
+                                        lognorm3=True, vmin3=1e-12,
+                                        return_fig=True, display_fig=True)
+            if plot_sms:
+                sms_fig = sms(U, s, alpha2, cp.array(efield_ri), N_DH, Imax_unocc, i)
+            
             
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
@@ -304,8 +298,10 @@ def sms(U, s, alpha2, electric_field, N_DH, Imax_unocc, itr):
     plt.xlabel(r'$(s_{i}/\alpha)^2$: Square of Normalized Singular Values')
     plt.ylabel('SMS')
     plt.grid()
-    display(fig)
     plt.close()
+    display(fig)
+    
+    return fig
 
 def create_sinc_probe(Nacts, amp, probe_radius, probe_phase=0, offset=(0,0), bad_axis='x'):
     print('Generating probe with amplitude={:.3e}, radius={:.1f}, phase={:.3f}, offset=({:.1f},{:.1f}), with discontinuity along '.format(amp, probe_radius, probe_phase, offset[0], offset[1]) + bad_axis + ' axis.')
