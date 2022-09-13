@@ -197,12 +197,15 @@ def construct_control_matrix(response_matrix, weight_map, nprobes=2, rcond=1e-2,
 def single_iteration(sysi, probe_cube, probe_amplitude, control_matrix, pixel_mask_dark_hole):
     # Take a measurement
     differential_images = take_measurement(sysi, probe_cube, probe_amplitude)
+    print('differential_images shape: ', differential_images.shape)
     
     # Choose which pixels we want to control
     measurement_vector = differential_images[:, pixel_mask_dark_hole].ravel()
-
+    print('measurement_vector shape: ', measurement_vector.shape)
+    
     # Calculate the control signal in modal coefficients
     reconstructed_coefficients = control_matrix.dot( measurement_vector )
+    print('reconstructed_coefficients shape: ', reconstructed_coefficients.shape)
     
     return reconstructed_coefficients
 
@@ -220,7 +223,7 @@ def run(sysi, control_matrix, probe_modes, probe_amplitude, calibration_modes, w
     for i in range(num_iterations):
         print("\tClosed-loop iteration {:d} / {:d}".format(i+1, num_iterations))
         delta_coefficients = single_iteration(sysi, probe_modes, probe_amplitude, control_matrix, weights.flatten()>0)
-        command = (1.0-leakage) * command + gain * delta_coefficients
+        command = (1.0-leakage)*command + gain*delta_coefficients
         
         # Reconstruct the full phase from the Fourier modes
         dm_command = calibration_modes.T.dot(command).reshape(sysi.Nact,sysi.Nact)
@@ -235,7 +238,7 @@ def run(sysi, control_matrix, probe_modes, probe_amplitude, calibration_modes, w
         dm_commands.append(sysi.get_dm1())
         
         if display: misc.myimshow2(dm_commands[i], image, 
-                                   'DM', 'Image: Iteration {:d}'.format(i),
+                                   'DM', 'Image: Iteration {:d}'.format(i+1),
                                    lognorm2=True, vmin2=image.max()/1e6)
             
     print('I-EFC loop completed in {:.3f}s.'.format(time.time()-start))

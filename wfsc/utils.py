@@ -12,6 +12,8 @@ from astropy.io import fits
 from matplotlib.patches import Circle, Rectangle
 import pickle
 
+import matplotlib.pyplot as plt
+
 from cgi_phasec_poppy import misc
 
 # Create control matrix
@@ -59,7 +61,9 @@ def create_annular_focal_plane_mask(x, y, params):
     mask = (r < outer_radius) * (r > inner_radius)
     if params['full']==False:
         mask *= (x > edge_position)
-        
+    else:
+        mask *= (abs(x) > edge_position)
+    
     mask = ndimage.rotate(mask, rot, reshape=False, order=0)
     
     return mask
@@ -89,8 +93,42 @@ def create_bowtie_mask(x, y, params):
     
     
     
+def sms(U, s, alpha2, electric_field, N_DH, Imax_unocc, itr): 
+    # jac: system jacobian
+    # electric_field: the electric field acquired by estimation or from the model
     
+    E_ri = U.conj().T.dot(electric_field)
+    SMS = cp.abs(E_ri)**2/(N_DH/2*Imax_unocc)
+#     print(SMS.shape)
     
+    Nbox = 31
+    box = cp.ones(Nbox)/Nbox
+    SMS_smooth = cp.convolve(SMS, box, mode='same')
+    
+    x = (s**2/alpha2).get()
+    y = SMS_smooth.get()
+    
+#     print(I_ri_smooth)
+#     contrast = np.trapz(y, x)
+#     print(contrast)
+    
+    xmax = np.max(x)
+    xmin = 1e-10 
+    ymax = 1
+    ymin = 1e-14
+    
+    fig = plt.figure(dpi=125)
+    plt.loglog(x, y)
+    plt.title('Singular Mode Spectrum: Iteration {:d}'.format(itr))
+    plt.xlim(xmin, xmax)
+    plt.ylim(ymin, ymax)
+    plt.xlabel(r'$(s_{i}/\alpha)^2$: Square of Normalized Singular Values')
+    plt.ylabel('SMS')
+    plt.grid()
+    plt.close()
+    display(fig)
+    
+    return fig
     
     
     

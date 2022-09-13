@@ -61,7 +61,7 @@ def create_fourier_modes(xfp, mask, Nact=34, use_both=True, circular_mask=True):
         M[:] *= circ.flatten()
         
     M /= np.std(M, axis=1, keepdims=True)
-        
+    
     return M, fx, fy
 
 def fourier_mode(lambdaD_yx, rms=1, acts_per_D_yx=(34,34), Nact=34, phase=0):
@@ -169,7 +169,7 @@ def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibra
                 
                 # DM2: Set the DM to the correct state
                 sysi.add_dm2(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
-                differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1, 
+                differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1,
                                                                           return_all=True)
                 
                 images_2.append(single_images_2)

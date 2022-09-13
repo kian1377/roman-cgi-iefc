@@ -112,7 +112,18 @@ def run_pwp(sysi, probes, jacobian, dark_mask, reg_cond=1e-2, use_noise=False, d
     
     return E_est_2d
 
-def run_efc_pwp(sysi, efc_matrix, jac, probes, dark_mask, efc_loop_gain=0.5, iterations=5, display=False):
+def run_efc_pwp(sysi, 
+                probes,
+                    jac, 
+                    reg_fun,
+                    reg_conds,
+                    dark_mask, 
+                    Imax_unocc,
+                    efc_loop_gain=0.5, 
+                    iterations=5, 
+                    display_all=False, 
+                    display_current=True,
+                    plot_sms=True):
     print('Beginning closed-loop EFC simulation.')
     
     commands = []
@@ -121,10 +132,25 @@ def run_efc_pwp(sysi, efc_matrix, jac, probes, dark_mask, efc_loop_gain=0.5, ite
     
     start=time.time()
     
+    jac_cp = cp.array(jac) if isinstance(jac, np.ndarray) else jac
+    
+    U, s, V = cp.linalg.svd(jac_cp, full_matrices=False)
+    alpha2 = cp.max( cp.diag( cp.real( jac_cp.conj().T @ jac_cp ) ) )
+    print('Max singular value squared:\t', s.max()**2)
+    print('alpha^2:\t\t\t', alpha2) 
+    
+    N_DH = dark_mask.sum()
+    
     dm_ref = sysi.get_dm1()
     dm_command = np.zeros((sysi.Nact, sysi.Nact)) 
-    for i in range(iterations):
+    for i in range(iterations+1):
         print('\tRunning iteration {:d}/{:d}.'.format(i+1, iterations))
+        
+        if i==0 or i in reg_conds[0]:
+            reg_cond_ind = np.argwhere(i==reg_conds[0])[0][0]
+            reg_cond = reg_conds[1, reg_cond_ind]
+            print('\tComputing EFC matrix via ' + reg_fun.__name__ + ' with condition value {:.2e}'.format(reg_cond))
+            efc_matrix = reg_fun(jac_cp, reg_cond).get()
         
         sysi.set_dm1(dm_ref + dm_command)
         E_est = run_pwp(sysi, probes, jac, dark_mask)
@@ -134,19 +160,36 @@ def run_efc_pwp(sysi, efc_matrix, jac, probes, dark_mask, efc_loop_gain=0.5, ite
         efields.append(copy.copy(E_est))
         images.append(copy.copy(I_exact))
         
-        x = np.concatenate( (E_est[dark_mask].real, E_est[dark_mask].imag) )
-        y = efc_matrix.dot(x)
+        efield_ri = np.concatenate( (E_est[dark_mask].real, E_est[dark_mask].imag) )
+        del_dm = efc_matrix.dot(efield_ri).reshape(sysi.Nact,sysi.Nact)
         
-        dm_command -= efc_loop_gain * y.reshape(sysi.Nact,sysi.Nact)
+        dm_command -= efc_loop_gain * del_dm.reshape(sysi.Nact,sysi.Nact)
         
-        if display:
-            misc.myimshow2(commands[i], abs(images[i])**2, lognorm2=True)
+        if display_current or display_all:
+            if not display_all: clear_output(wait=True)
+                
+            fig,ax = misc.myimshow3(commands[i], np.abs(E_est)**2, I_exact, 
+                                        'DM', 'Estimated Intensity', 'Image: Iteration {:d}'.format(i),
+                                        lognorm2=True, vmin2=1e-12, lognorm3=True, vmin3=1e-12,
+                                        return_fig=True, display_fig=True)
+            if plot_sms:
+                sms_fig = utils.sms(U, s, alpha2, cp.array(efield_ri), N_DH, Imax_unocc, i)
         
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
     return commands, efields, images
 
-def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5, display=False):
+def run_efc_perfect(sysi, 
+                    jac, 
+                    reg_fun,
+                    reg_conds,
+                    dark_mask, 
+                    Imax_unocc,
+                    efc_loop_gain=0.5, 
+                    iterations=5, 
+                    display_all=False, 
+                    display_current=True,
+                    plot_sms=True):
     # This function is only for running EFC simulations
     print('Beginning closed-loop EFC simulation.')    
     commands = []
@@ -154,10 +197,26 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
     
     start = time.time()
     
+    jac = cp.array(jac) if isinstance(jac, np.ndarray) else jac
+    
+    U, s, V = cp.linalg.svd(jac, full_matrices=False)
+    alpha2 = cp.max( cp.diag( cp.real( jac.conj().T @ jac ) ) )
+    print('Max singular value squared:\t', s.max()**2)
+    print('alpha^2:\t\t\t', alpha2) 
+    
+    N_DH = dark_mask.sum()
+    
     dm_ref = sysi.get_dm1()
     dm_command = np.zeros((sysi.Nact, sysi.Nact)) 
-    for i in range(iterations):
+    print()
+    for i in range(iterations+1):
         print('\tRunning iteration {:d}/{:d}.'.format(i+1, iterations))
+        
+        if i==0 or i in reg_conds[0]:
+            reg_cond_ind = np.argwhere(i==reg_conds[0])[0][0]
+            reg_cond = reg_conds[1, reg_cond_ind]
+            print('\tComputing EFC matrix via ' + reg_fun.__name__ + ' with condition value {:.2e}'.format(reg_cond))
+            efc_matrix = reg_fun(jac, reg_cond).get()
         
         sysi.set_dm1(dm_ref + dm_command) 
         
@@ -167,15 +226,20 @@ def run_efc_perfect(sysi, efc_matrix, dark_mask, efc_loop_gain=0.5, iterations=5
         commands.append(sysi.get_dm1())
         efields.append(copy.copy(electric_field))
         
-        x = np.concatenate( (electric_field[dark_mask].real, electric_field[dark_mask].imag) )
-        del_dm = efc_matrix.dot(x).reshape(sysi.Nact,sysi.Nact)
+        efield_ri = np.concatenate( (electric_field[dark_mask].real, electric_field[dark_mask].imag) )
+        del_dm = efc_matrix.dot(efield_ri).reshape(sysi.Nact,sysi.Nact)
         
         dm_command -= efc_loop_gain * del_dm
         
-        if display:
-            misc.myimshow2(commands[i], abs(efields[i])**2,
-                           'DM', 'Image: Iteration {:d}'.format(i), 
-                           lognorm2=True)
+        if display_current or display_all:
+            if not display_all: clear_output(wait=True)
+                
+            fig,ax = misc.myimshow2(commands[i], np.abs(electric_field)**2, 
+                                        'DM', 'Image: Iteration {:d}'.format(i),
+                                        lognorm2=True, vmin2=1e-12,
+                                        return_fig=True, display_fig=True)
+            if plot_sms:
+                sms_fig = utils.sms(U, s, alpha2, cp.array(efield_ri), N_DH, Imax_unocc, i)
         
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     

@@ -252,56 +252,12 @@ def run_efc_perfect(sysi,
                                         lognorm3=True, vmin3=1e-12,
                                         return_fig=True, display_fig=True)
             if plot_sms:
-                sms_fig = sms(U, s, alpha2, cp.array(efield_ri), N_DH, Imax_unocc, i)
+                sms_fig = utils.sms(U, s, alpha2, cp.array(efield_ri), N_DH, Imax_unocc, i)
             
             
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
     return dm1_commands, dm2_commands, efields
-
-def sms(U, s, alpha2, electric_field, N_DH, Imax_unocc, itr): 
-    # jac: system jacobian
-    # electric_field: the electric field acquired by estimation or from the model
-#     print(alpha2)
-#     print(s.shape, U.shape, U.conj().T.shape)
-#     print(electric_field.shape)
-    
-#     E_ri = U.conj().T @ electric_field
-#     I_ri = cp.abs(E_ri)**2
-#     print(I_ri.shape)
-
-    E_ri = U.conj().T.dot(electric_field)
-    SMS = cp.abs(E_ri)**2/(N_DH/2*Imax_unocc)
-#     print(SMS.shape)
-    
-    Nbox = 31
-    box = cp.ones(Nbox)/Nbox
-    SMS_smooth = cp.convolve(SMS, box, mode='same')
-    
-    x = (s**2/alpha2).get()
-    y = SMS_smooth.get()
-    
-#     print(I_ri_smooth)
-#     contrast = np.trapz(y, x)
-#     print(contrast)
-    
-    xmax = np.max(x)
-    xmin = 1e-10 
-    ymax = 1
-    ymin = 1e-14
-    
-    fig = plt.figure(dpi=125)
-    plt.loglog(x, y)
-    plt.title('Singular Mode Spectrum: Iteration {:d}'.format(itr))
-    plt.xlim(xmin, xmax)
-    plt.ylim(ymin, ymax)
-    plt.xlabel(r'$(s_{i}/\alpha)^2$: Square of Normalized Singular Values')
-    plt.ylabel('SMS')
-    plt.grid()
-    plt.close()
-    display(fig)
-    
-    return fig
 
 def create_sinc_probe(Nacts, amp, probe_radius, probe_phase=0, offset=(0,0), bad_axis='x'):
     print('Generating probe with amplitude={:.3e}, radius={:.1f}, phase={:.3f}, offset=({:.1f},{:.1f}), with discontinuity along '.format(amp, probe_radius, probe_phase, offset[0], offset[1]) + bad_axis + ' axis.')
