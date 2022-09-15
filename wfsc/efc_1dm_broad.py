@@ -59,16 +59,14 @@ def build_jacobian(sysi, wavelengths, epsilon, dark_mask, display=False):
         
     jacobian = np.array(responses).T
     
-#     for i in range(len(wavelengths)):
-#         jac_dm1_new = jac_dm1[:,:sys.Nact**2] if i==0 else np.concatenate((jac_dm1_new, 
-#                                                                            jac_dm1[:,i*sys.Nact**2:(i+1)*sys.Nact**2]),
-#                                                                           axis=0)
+    for i in range(len(wavelengths)):
+        jac_new = jac[:,:sysi.Nact**2] if i==0 else np.concatenate((jac_new, jac[:,i*sysi.Nact**2:(i+1)*sysi.Nact**2]), axis=0)
         
     print('Jacobian built in {:.3f} sec'.format(time.time()-start))
     
-    return jacobian
+    return jac_new
 
-def run_pwp(sysi, probes, jacobian, dark_mask, reg_cond=1e-2, use_noise=False, display=False):
+def run_pwp(sysi, wavelengths, probes, jacobian, dark_mask, reg_cond=1e-2, use_noise=False, display=False):
     nmask = dark_mask.sum()
     
     dm_ref = sysi.get_dm1()
@@ -190,6 +188,7 @@ def run_efc_pwp(sysi,
     return commands, efields, images
 
 def run_efc_perfect(sysi, 
+                    wavelengths, 
                     jac, 
                     reg_fun,
                     reg_conds,
@@ -203,7 +202,7 @@ def run_efc_perfect(sysi,
     # This function is only for running EFC simulations
     print('Beginning closed-loop EFC simulation.')    
     commands = []
-    efields = []
+    images = []
     
     start = time.time()
     
@@ -230,26 +229,33 @@ def run_efc_perfect(sysi,
         
         sysi.set_dm1(dm_ref + dm_command) 
         
-        psf = sysi.calc_psf()
-        electric_field = psf.wavefront.get()
-        
+        psf_bb = 0
+        electric_fields = [] # contains the e-field for each discrete wavelength
+        for wavelength in wavelengths:
+            sysi.wavelength = wavelength
+            psf = sysi.calc_psf()
+            electric_fields.append(psf.wavefront[dark_mask].get())
+            psf_bb += psf.intensity.get()
+            
         commands.append(sysi.get_dm1())
-        efields.append(copy.copy(electric_field))
+        images.append(copy.copy(psf_bb))
         
-        efield_ri = np.concatenate( (electric_field[dark_mask].real, electric_field[dark_mask].imag) )
-        del_dm = efc_matrix.dot(efield_ri).reshape(sysi.Nact,sysi.Nact)
+        for j in range(len(wavelengths)):
+            xnew = np.concatenate( (electric_fields[j].real, electric_fields[j].imag) )
+            x = xnew if j==0 else np.concatenate( (x,xnew) )
+        del_dm = efc_matrix.dot(x).reshape(sysi.Nact,sysi.Nact)
         
         dm_command -= efc_loop_gain * del_dm
         
         if display_current or display_all:
             if not display_all: clear_output(wait=True)
                 
-            fig,ax = misc.myimshow2(commands[i], np.abs(electric_field)**2, 
+            fig,ax = misc.myimshow2(commands[i], images[i], 
                                         'DM', 'Image: Iteration {:d}'.format(i),
                                         lognorm2=True, vmin2=1e-12,
                                         return_fig=True, display_fig=True)
             if plot_sms:
-                sms_fig = utils.sms(U, s, alpha2, cp.array(efield_ri), N_DH, Imax_unocc, i)
+                sms_fig = utils.sms(U, s, alpha2, cp.array(x), N_DH, Imax_unocc, i)
         
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
