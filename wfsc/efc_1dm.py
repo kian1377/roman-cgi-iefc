@@ -10,7 +10,9 @@ import time
 import copy
 from importlib import reload
 
+from . import pwp_1dm as pwp
 from . import utils
+reload(pwp)
 reload(utils)
 
 from cgi_phasec_poppy import misc
@@ -58,8 +60,63 @@ def build_jacobian(sysi, epsilon, dark_mask, display=False):
     
     return jacobian
 
-def run_pwp(sysi, probes, jacobian, dark_mask, reg_cond=1e-2, use_noise=False, display=False):
+# def run_pwp(sysi, probes, jacobian, dark_mask, use_noise=False, display=False):
+#     nmask = dark_mask.sum()
+    
+#     dm_ref = sysi.get_dm1()
+#     amps = np.linspace(-1, 1, 2) # for generating a negative and positive probe
+    
+#     Ip = []
+#     In = []
+#     for i,probe in enumerate(probes):
+#         for amp in amps:
+#             sysi.add_dm1(amp*probe)
+#             psf = sysi.snap()
+                
+#             if amp==-1: 
+#                 In.append(psf)
+#             else: 
+#                 Ip.append(psf)
+                
+#             sysi.add_dm1(-amp*probe) # remove probe from DM
+            
+#         if display:
+#             misc.myimshow3(Ip[i], In[i], Ip[i]-In[i],
+#                            'Probe {:d} Positive Image'.format(i+1), 'Probe {:d} Negative Image'.format(i+1),
+#                            'Intensity Difference',
+#                            lognorm1=True, lognorm2=True, vmin1=Ip[i].max()/1e6, vmin2=In[i].max()/1e6,
+#                           )
+        
+#     E_probes = np.zeros((probes.shape[0], 2*nmask))
+#     I_diff = np.zeros((probes.shape[0], nmask))
+#     for i in range(len(probes)):
+#         E_probe = jacobian.dot(np.array(probes[i].flatten())) # Use jacobian to model probe E-field at the focal plane
+#         E_probe = E_probe[:nmask] + 1j*E_probe[nmask:]
+
+#         E_probes[i, :nmask] = E_probe.real
+#         E_probes[i, nmask:] = E_probe.imag
+
+#         I_diff[i:(i+1), :] = (Ip[i] - In[i])[dark_mask]
+    
+#     # Use batch process to estimate each pixel individually
+#     E_est = np.zeros((nmask,), dtype=cp.complex128)
+#     for i in range(nmask):
+#         delI = I_diff[:, i]
+#         M = 2*np.array([E_probes[:,i], E_probes[:,i+nmask]]).T
+#         Minv = np.linalg.inv(M)
+        
+#         est = Minv.dot(delI)
+
+#         E_est[i] = est[0] + 1j*est[1]
+        
+#     E_est_2d = np.zeros((sysi.npsf,sysi.npsf), dtype=np.complex128)
+#     np.place(E_est_2d, mask=dark_mask, vals=E_est)
+    
+#     return E_est_2d
+
+def run_pwp(sysi, probes, jacobian, dark_mask, use_noise=False, display=False):
     nmask = dark_mask.sum()
+    nprobes = probes.shape[0]
     
     dm_ref = sysi.get_dm1()
     amps = np.linspace(-1, 1, 2) # for generating a negative and positive probe
@@ -69,12 +126,13 @@ def run_pwp(sysi, probes, jacobian, dark_mask, reg_cond=1e-2, use_noise=False, d
     for i,probe in enumerate(probes):
         for amp in amps:
             sysi.add_dm1(amp*probe)
-            psf = sysi.snap()
+            
+            im = sysi.snap()
                 
             if amp==-1: 
-                In.append(psf)
+                In.append(im)
             else: 
-                Ip.append(psf)
+                Ip.append(im)
                 
             sysi.add_dm1(-amp*probe) # remove probe from DM
             
@@ -82,35 +140,43 @@ def run_pwp(sysi, probes, jacobian, dark_mask, reg_cond=1e-2, use_noise=False, d
             misc.myimshow3(Ip[i], In[i], Ip[i]-In[i],
                            'Probe {:d} Positive Image'.format(i+1), 'Probe {:d} Negative Image'.format(i+1),
                            'Intensity Difference',
-                           lognorm1=True, lognorm2=True, 
+                           lognorm1=True, lognorm2=True, vmin1=Ip[i].max()/1e6, vmin2=In[i].max()/1e6,
                           )
+
+    E_probes = np.zeros((2*nmask*nprobes,))
+    I_diff = np.zeros((nmask*nprobes,))
+    for i in range(nprobes):
+        I_diff[ i*nmask : (i+1)*nmask ] = (Ip[i] - In[i])[dark_mask]
         
-    E_probes = np.zeros((probes.shape[0], 2*nmask))
-    I_diff = np.zeros((probes.shape[0], nmask))
-    for i in range(len(probes)):
-        E_probe = jacobian.dot(np.array(probes[i].flatten())) # Use jacobian to model probe E-field at the focal plane
-        E_probe = E_probe[:nmask] + 1j*E_probe[nmask:]
-
-        E_probes[i, :nmask] = E_probe.real
-        E_probes[i, nmask:] = E_probe.imag
-
-        I_diff[i:(i+1), :] = (Ip[i] - In[i])[dark_mask]
+        E_probe = jacobian.dot(np.array(probes[i].flatten()))
+        E_probes[ i*2*nmask : (i+1)*2*nmask ] = E_probe
+        
+        E_probe_2d = np.zeros((sysi.npsf,sysi.npsf), dtype=np.complex128)
+        np.place(E_probe_2d, mask=dark_mask, 
+                 vals=E_probes[i*nmask:i*nmask + 2*nmask][:nmask] + 1j*E_probes[i*nmask:i*nmask + 2*nmask][nmask:])
+        misc.myimshow2(np.abs(E_probe_2d), np.angle(E_probe_2d))
+        
+    B = np.diag(np.ones((nmask,2*nmask))[0], k=0)[:nmask,:2*nmask] + np.diag(np.ones((nmask,2*nmask))[0], k=nmask)[:nmask,:2*nmask]
+    misc.myimshow(B)
+    print('B.shape', B.shape)
     
-    # Use batch process to estimate each pixel individually
-    E_est = np.zeros((nmask,), dtype=cp.complex128)
-    for i in range(nmask):
-        delI = I_diff[:, i]
-        M = 2*np.array([E_probes[:,i], E_probes[:,i+nmask]]).T
-        Minv = utils.TikhonovInverse(M, reg_cond)
-
-        est = Minv.dot(delI)
-
-        E_est[i] = est[0] + 1j*est[1]
+    for i in range(nprobes):
+        h = B @ np.diag( E_probes[ i*2*nmask : (i+1)*2*nmask ] )
+        Hinv = h if i==0 else np.vstack((Hinv,h))
+    
+    print('Hinv.shape', Hinv.shape)
+    
+    H = np.linalg.inv(Hinv.T@Hinv)@Hinv.T
+    print('H.shape', H.shape)
+    
+    E_est = H.dot(I_diff)
         
     E_est_2d = np.zeros((sysi.npsf,sysi.npsf), dtype=np.complex128)
     np.place(E_est_2d, mask=dark_mask, vals=E_est)
     
     return E_est_2d
+
+
 
 def run_efc_pwp(sysi, 
                 probes,
@@ -153,7 +219,7 @@ def run_efc_pwp(sysi,
             efc_matrix = reg_fun(jac_cp, reg_cond).get()
         
         sysi.set_dm1(dm_ref + dm_command)
-        E_est = run_pwp(sysi, probes, jac, dark_mask)
+        E_est = pwp.run_pwp_bp(sysi, probes, dark_mask, use='j', jacobian=jac)
         I_exact = sysi.snap()
         
         commands.append(sysi.get_dm1())
@@ -245,48 +311,5 @@ def run_efc_perfect(sysi,
     
     return commands, efields
 
-def create_sinc_probe(Nacts, amp, probe_radius, probe_phase=0, offset=(0,0), bad_axis='x'):
-    print('Generating probe with amplitude={:.3e}, radius={:.1f}, phase={:.3f}, offset=({:.1f},{:.1f}), with discontinuity along '.format(amp, probe_radius, probe_phase, offset[0], offset[1]) + bad_axis + ' axis.')
-    
-    xacts = np.arange( -(Nacts-1)/2, (Nacts+1)/2 )/Nacts - np.round(offset[0])/Nacts
-    yacts = np.arange( -(Nacts-1)/2, (Nacts+1)/2 )/Nacts - np.round(offset[1])/Nacts
-    Xacts,Yacts = np.meshgrid(xacts,yacts)
-    if bad_axis=='x': 
-        fX = 2*probe_radius
-        fY = probe_radius
-        omegaY = probe_radius/2
-        probe_commands = amp * np.sinc(fX*Xacts)*np.sinc(fY*Yacts) * np.cos(2*np.pi*omegaY*Yacts + probe_phase)
-    elif bad_axis=='y': 
-        fX = probe_radius
-        fY = 2*probe_radius
-        omegaX = probe_radius/2
-        probe_commands = amp * np.sinc(fX*Xacts)*np.sinc(fY*Yacts) * np.cos(2*np.pi*omegaX*Xacts + probe_phase) 
-    if probe_phase == 0:
-        f = 2*probe_radius
-        probe_commands = amp * np.sinc(f*Xacts)*np.sinc(f*Yacts)
-    return probe_commands
-
-def create_sinc_probes(Npairs, Nacts, dm_mask, probe_amplitude, probe_radius=10, probe_offset=(0,0), display=False):
-    
-    probe_phases = np.linspace(0, np.pi*(Npairs-1)/Npairs, Npairs)
-    
-    probes = []
-    for i in range(Npairs):
-        if i%2==0:
-            axis = 'x'
-        else:
-            axis = 'y'
-            
-        probe = create_sinc_probe(Nacts, probe_amplitude, probe_radius, probe_phases[i], offset=probe_offset, bad_axis=axis)
-            
-        probes.append(probe*dm_mask)
-    
-    if display:
-        if Npairs==2:
-            misc.myimshow2(probes[0], probes[1])
-        elif Npairs==3:
-            misc.myimshow3(probes[0], probes[1], probes[2])
-    
-    return np.array(probes)
 
 

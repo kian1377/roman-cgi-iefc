@@ -66,7 +66,7 @@ def build_jacobian(sysi, wavelengths, epsilon, dark_mask, display=False):
     
     return jac_new
 
-def run_pwp(sysi, wavelengths, probes, jacobian, dark_mask, reg_cond=1e-2, use_noise=False, display=False):
+def run_pwp(sysi, wavelengths, probes, jacobian, dark_mask, use_noise=False, display=False):
     nmask = dark_mask.sum()
     
     dm_ref = sysi.get_dm1()
@@ -77,12 +77,16 @@ def run_pwp(sysi, wavelengths, probes, jacobian, dark_mask, reg_cond=1e-2, use_n
     for i,probe in enumerate(probes):
         for amp in amps:
             sysi.add_dm1(amp*probe)
-            psf = sysi.snap()
+            
+            bb_im = 0
+            for wavelength in wavelengths:
+                sysi.wavelength = wavelength
+                bb_im += sysi.snap()
                 
             if amp==-1: 
-                In.append(psf)
+                In.append(bb_im)
             else: 
-                Ip.append(psf)
+                Ip.append(bb_im)
                 
             sysi.add_dm1(-amp*probe) # remove probe from DM
             
@@ -90,30 +94,72 @@ def run_pwp(sysi, wavelengths, probes, jacobian, dark_mask, reg_cond=1e-2, use_n
             misc.myimshow3(Ip[i], In[i], Ip[i]-In[i],
                            'Probe {:d} Positive Image'.format(i+1), 'Probe {:d} Negative Image'.format(i+1),
                            'Intensity Difference',
-                           lognorm1=True, lognorm2=True, 
+                           lognorm1=True, lognorm2=True, vmin1=Ip[i].max()/1e6, vmin2=In[i].max()/1e6,
                           )
         
-    E_probes = np.zeros((probes.shape[0], 2*nmask))
-    I_diff = np.zeros((probes.shape[0], nmask))
-    for i in range(len(probes)):
-        E_probe = jacobian.dot(np.array(probes[i].flatten())) # Use jacobian to model probe E-field at the focal plane
-        E_probe = E_probe[:nmask] + 1j*E_probe[nmask:]
+#     E_probes = np.zeros((probes.shape[0], 2*nmask))
+#     I_diff = np.zeros((probes.shape[0], nmask))
+#     for i in range(len(probes)):
+#         E_probe_all_waves = jacobian.dot(np.array(probes[i].flatten()))
 
-        E_probes[i, :nmask] = E_probe.real
-        E_probes[i, nmask:] = E_probe.imag
+#         E_probe_waves = []
+#         for i in range(len(wavelengths)):
+#             E_probe_one_wave = E_probe_all_waves[2*nmask*i:2*nmask*(i+1)]
+#             E_probe = E_probe_one_wave[:nmask] + 1j*E_probe_one_wave[nmask:]
+            
+#             E_probe_waves.append(E_probe)
+            
+#             E_probes[i, :nmask] += E_probe.real
+#             E_probes[i, nmask:] += E_probe.imag
+            
+    nwaves = len(wavelengths)
+    nprobes = probes.shape[0]
 
-        I_diff[i:(i+1), :] = (Ip[i] - In[i])[dark_mask]
+    E_probes = np.zeros((2*nmask*nwaves*nprobes,))
+    I_diff = np.zeros((nprobes*nmask,))
+    E_probe_waves = []
+
+    for i in range(nprobes):
+        E_probe_all_waves = jacobian.dot(np.array(probes[i].flatten()))
+
+        for j in range(nwaves):
+            E_probe_stacked = E_probe_all_waves[2*nmask*j:2*nmask*(j+1)]
+
+            E_probe_waves.append(E_probe_stacked)
+            E_probes[i*nmask*nwaves + j*nmask:i*nmask*nwaves + j*nmask + 2*nmask] = E_probe_stacked
+
+#             E_probe_2d = np.zeros((sysi.npsf,sysi.npsf), dtype=np.complex128)
+#             np.place(E_probe_2d, mask=dh_mask, vals=E_probe_stacked[:nmask]+1j*E_probe_stacked[nmask:])
+#             np.place(E_probe_2d, mask=dh_mask, vals=E_probe_stacked[::2]+1j*E_probe_stacked[1::2])
+#             np.place(E_probe_2d, mask=dh_mask, 
+#                      vals=E_probes[i*nmask + j*nmask:i*nmask + j*nmask + 2*nmask][:nmask] + 1j*E_probes[i*nmask + j*nmask:i*nmask + j*nmask + 2*nmask][nmask:])
+#             misc.myimshow2(np.abs(E_probe_2d), np.angle(E_probe_2d))
+
+        I_diff[i*nmask:(i+1)*nmask] = (Ip[i] - In[i])[dark_mask]
     
-    # Use batch process to estimate each pixel individually
-    E_est = np.zeros((nmask,), dtype=cp.complex128)
-    for i in range(nmask):
-        delI = I_diff[:, i]
-        M = 2*np.array([E_probes[:,i], E_probes[:,i+nmask]]).T
-        Minv = utils.TikhonovInverse(M, reg_cond)
+    print('This step worked')
+    
+#     # Use batch process to estimate each pixel individually
+#     E_est = np.zeros((nmask,), dtype=cp.complex128)
+#     for i in range(nmask):
+#         delI = I_diff[:, i]
+#         M = 2*np.array([E_probes[:,i], E_probes[:,i+nmask]]).T
+#         Minv = np.linalg.inv(M)
 
-        est = Minv.dot(delI)
-
-        E_est[i] = est[0] + 1j*est[1]
+#         est = Minv.dot(delI)
+        
+    B = np.diag(np.ones((nmask,2*nmask))[0], k=0)[:nmask,:2*nmask] + np.diag(np.ones((nmask,2*nmask))[0], k=nmask)[:nmask,:2*nmask]
+    Bfull = np.tile(B, len(wavelengths) )
+    
+    H1 = np.diag( Bfull.dot( E_probes[:2*nmask*nwaves] ))
+    H2 = np.diag( Bfull.dot( E_probes[2*nmask*nwaves:] ))
+    Hinv = 4*np.hstack((H1,H2))
+    print(Hinv.shape)
+    
+    H = np.linalg.inv(Hinv.T@Hinv)@Hinv.T
+    print(H.shape)
+    
+    E_est[i] = H.dot(I_diff)
         
     E_est_2d = np.zeros((sysi.npsf,sysi.npsf), dtype=np.complex128)
     np.place(E_est_2d, mask=dark_mask, vals=E_est)
@@ -219,7 +265,7 @@ def run_efc_perfect(sysi,
     dm_command = np.zeros((sysi.Nact, sysi.Nact)) 
     print()
     for i in range(iterations+1):
-        print('\tRunning iteration {:d}/{:d}.'.format(i+1, iterations))
+        print('\tRunning iteration {:d}/{:d}.'.format(i, iterations))
         
         if i==0 or i in reg_conds[0]:
             reg_cond_ind = np.argwhere(i==reg_conds[0])[0][0]
@@ -259,7 +305,7 @@ def run_efc_perfect(sysi,
         
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
-    return commands, efields
+    return commands, images
 
 def create_sinc_probe(Nacts, amp, probe_radius, probe_phase=0, offset=(0,0), bad_axis='x'):
     print('Generating probe with amplitude={:.3e}, radius={:.1f}, phase={:.3f}, offset=({:.1f},{:.1f}), with discontinuity along '.format(amp, probe_radius, probe_phase, offset[0], offset[1]) + bad_axis + ' axis.')
