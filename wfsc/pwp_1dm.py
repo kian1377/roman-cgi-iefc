@@ -192,7 +192,7 @@ def run_pwp_new(sysi, probes, dark_mask, use, jacobian=None, model=None, use_noi
     
     print('Hinv.shape', Hinv.shape)
     
-    H = np.linalg.inv(Hinv.T@Hinv)@Hinv.T
+    H = np.linalg.pinv(Hinv.T@Hinv, 1e-15)@Hinv.T
 #     H = utils.TikhonovInverse(Hinv, rcond=0.2)
     print('H.shape', H.shape)
     
@@ -242,52 +242,63 @@ def run_pwp_broad(sysi, wavelengths, probes, dark_mask, use, jacobian=None, mode
     for i in range(nprobes):
         I_diff[i*nmask:(i+1)*nmask] = (Ip[i] - In[i])[dark_mask]
         
-#         E_probe_all_waves = jacobian.dot(np.array(probes[i].flatten()))
-#         E_probes[ i*2*nmask*nwaves : (i+1)*2*nmask*nwaves ] = E_probe_all_waves
-        
         for j in range(nwaves):
-            jac_wave = jacobian[j*2*nmask:(j+1)*2*nmask]
-            E_probe = jac_wave.dot(np.array(probes[i].flatten()))
+#             jac_wave = jacobian[j*2*nmask:(j+1)*2*nmask]
+#             E_probe = jac_wave.dot(np.array(probes[i].flatten()))
+            
+            if (use=='jacobian' or use=='j') and jacobian is not None:
+                jac_wave = jacobian[j*2*nmask:(j+1)*2*nmask]
+                E_probe = jac_wave.dot(np.array(probes[i].flatten()))
+            elif (use=='model' or use=='m') and model is not None:
+                model.wavelength = wavelengths[j]
+                E_full = model.calc_psf().wavefront.get()[dark_mask]
+
+                model.add_dm1(probes[i])
+                E_full_probe = model.calc_psf().wavefront.get()[dark_mask]
+                model.add_dm1(-probes[i])
+
+                E_probe = E_full_probe - E_full
+                E_probe = np.concatenate((E_probe.real, E_probe.imag))
             
             E_probes[i*nwaves*2*nmask + j*2*nmask : i*nwaves*2*nmask + (j+1)*2*nmask] = E_probe
-#             E_probes = E_probe if i==0 and j==0 else np.concatenate((E_probes, E_probe))
-            
-#             E_probe_2d = np.zeros((sysi.npsf,sysi.npsf), dtype=np.complex128)
-# #             np.place(E_probe_2d, mask=dark_mask, vals=E_probe[:nmask]+1j*E_probe[nmask:])
-#             np.place(E_probe_2d, mask=dark_mask, 
-#                      vals=E_probes[(i+j)*2*nmask:(i+j+1)*2*nmask][:nmask] + 1j*E_probes[(i+j)*2*nmask:(i+j+1)*2*nmask][nmask:])
-#             misc.myimshow2(np.abs(E_probe_2d), np.angle(E_probe_2d))
-            
+
     B = np.diag(np.ones((nmask,2*nmask))[0], k=0)[:nmask,:2*nmask] \
         + np.diag(np.ones((nmask,2*nmask))[0], k=nmask)[:nmask,:2*nmask]
     Bfull = np.tile(B, nwaves )
-    misc.myimshow(Bfull)
+    misc.myimshow(B, figsize=(10,4))
     print('B.shape, Bfull.shape', B.shape, Bfull.shape)
     
     for i in range(nprobes):
-        h = 4 * Bfull @ np.diag( E_probes[ i*2*nmask*nwaves : (i+1)*2*nmask*nwaves ] )
-        Hinv = h1 if i==0 else np.vstack((Hinv,h1))
         for j in range(nwaves):
-#             h = 4 * B @ np.diag( E_probes[(i+j)*2*nmask:(i+j+1)*2*nmask] )
-#             Hinv = h if i==0 and j==0 else np.hstack((Hinv,h))
             
             E_probe_2d = np.zeros((sysi.npsf,sysi.npsf), dtype=np.complex128)
             np.place(E_probe_2d, mask=dark_mask, 
                      vals=E_probes[i*nwaves*2*nmask + j*2*nmask : i*nwaves*2*nmask + (j+1)*2*nmask][:nmask] + \
                           1j*E_probes[i*nwaves*2*nmask + j*2*nmask : i*nwaves*2*nmask + (j+1)*2*nmask][nmask:])
             misc.myimshow2(np.abs(E_probe_2d), np.angle(E_probe_2d))
-#         Hinv = Hinv if i==0 else np.vstack((Hinv,Hinv))
-    print('Hinv.shape', Hinv.shape)
+            
+            h = 4 * B @ np.diag( E_probes[ i*nwaves*2*nmask + j*2*nmask : i*nwaves*2*nmask + (j+1)*2*nmask ] )
+            print(h.shape)
+            H_inv = h if j==0 else np.hstack((H_inv,h))
+        Hinv = H_inv if i==0 else np.vstack((Hinv,H_inv))
+        print('Hinv.shape', Hinv.shape)
     
-    H = np.linalg.inv(Hinv.T@Hinv)@Hinv.T
+    H = np.linalg.pinv(Hinv.T@Hinv, 1e-15)@Hinv.T
     print('H.shape', H.shape)
     
     E_est = H.dot(I_diff)
-        
-    E_est_2d = np.zeros((sysi.npsf,sysi.npsf), dtype=np.complex128)
-    np.place(E_est_2d, mask=dark_mask, vals=E_est)
     
-    return E_est_2d
+    Es_2d = []
+    for j in range(nwaves):
+        E = E_est[j*2*nmask:j*2*nmask+nmask] + 1j*E_est[j*2*nmask+nmask:j*2*nmask+2*nmask] 
+        print(j*2*nmask, j*2*nmask+nmask, j*2*nmask+nmask, j*2*nmask+2*nmask)
+        
+        E_2d = np.zeros((sysi.npsf,sysi.npsf), dtype=np.complex128)
+        np.place(E_2d, mask=dark_mask, vals=E)
+        Es_2d.append(E_2d)
+    Es_2d = np.array(Es_2d)
+    
+    return Es_2d
 
 
 
