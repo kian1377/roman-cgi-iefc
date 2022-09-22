@@ -11,6 +11,8 @@ import copy
 from importlib import reload
 
 from . import utils
+from . import pwp_1dm as pwp
+reload(pwp)
 reload(utils)
 
 from cgi_phasec_poppy import misc
@@ -66,107 +68,9 @@ def build_jacobian(sysi, wavelengths, epsilon, dark_mask, display=False):
     
     return jac_new
 
-def run_pwp(sysi, wavelengths, probes, jacobian, dark_mask, use_noise=False, display=False):
-    nmask = dark_mask.sum()
-    
-    dm_ref = sysi.get_dm1()
-    amps = np.linspace(-1, 1, 2) # for generating a negative and positive probe
-    
-    Ip = []
-    In = []
-    for i,probe in enumerate(probes):
-        for amp in amps:
-            sysi.add_dm1(amp*probe)
-            
-            bb_im = 0
-            for wavelength in wavelengths:
-                sysi.wavelength = wavelength
-                bb_im += sysi.snap()
-                
-            if amp==-1: 
-                In.append(bb_im)
-            else: 
-                Ip.append(bb_im)
-                
-            sysi.add_dm1(-amp*probe) # remove probe from DM
-            
-        if display:
-            misc.myimshow3(Ip[i], In[i], Ip[i]-In[i],
-                           'Probe {:d} Positive Image'.format(i+1), 'Probe {:d} Negative Image'.format(i+1),
-                           'Intensity Difference',
-                           lognorm1=True, lognorm2=True, vmin1=Ip[i].max()/1e6, vmin2=In[i].max()/1e6,
-                          )
-        
-#     E_probes = np.zeros((probes.shape[0], 2*nmask))
-#     I_diff = np.zeros((probes.shape[0], nmask))
-#     for i in range(len(probes)):
-#         E_probe_all_waves = jacobian.dot(np.array(probes[i].flatten()))
-
-#         E_probe_waves = []
-#         for i in range(len(wavelengths)):
-#             E_probe_one_wave = E_probe_all_waves[2*nmask*i:2*nmask*(i+1)]
-#             E_probe = E_probe_one_wave[:nmask] + 1j*E_probe_one_wave[nmask:]
-            
-#             E_probe_waves.append(E_probe)
-            
-#             E_probes[i, :nmask] += E_probe.real
-#             E_probes[i, nmask:] += E_probe.imag
-            
-    nwaves = len(wavelengths)
-    nprobes = probes.shape[0]
-
-    E_probes = np.zeros((2*nmask*nwaves*nprobes,))
-    I_diff = np.zeros((nprobes*nmask,))
-    E_probe_waves = []
-
-    for i in range(nprobes):
-        E_probe_all_waves = jacobian.dot(np.array(probes[i].flatten()))
-
-        for j in range(nwaves):
-            E_probe_stacked = E_probe_all_waves[2*nmask*j:2*nmask*(j+1)]
-
-            E_probe_waves.append(E_probe_stacked)
-            E_probes[i*nmask*nwaves + j*nmask:i*nmask*nwaves + j*nmask + 2*nmask] = E_probe_stacked
-
-#             E_probe_2d = np.zeros((sysi.npsf,sysi.npsf), dtype=np.complex128)
-#             np.place(E_probe_2d, mask=dh_mask, vals=E_probe_stacked[:nmask]+1j*E_probe_stacked[nmask:])
-#             np.place(E_probe_2d, mask=dh_mask, vals=E_probe_stacked[::2]+1j*E_probe_stacked[1::2])
-#             np.place(E_probe_2d, mask=dh_mask, 
-#                      vals=E_probes[i*nmask + j*nmask:i*nmask + j*nmask + 2*nmask][:nmask] + 1j*E_probes[i*nmask + j*nmask:i*nmask + j*nmask + 2*nmask][nmask:])
-#             misc.myimshow2(np.abs(E_probe_2d), np.angle(E_probe_2d))
-
-        I_diff[i*nmask:(i+1)*nmask] = (Ip[i] - In[i])[dark_mask]
-    
-    print('This step worked')
-    
-#     # Use batch process to estimate each pixel individually
-#     E_est = np.zeros((nmask,), dtype=cp.complex128)
-#     for i in range(nmask):
-#         delI = I_diff[:, i]
-#         M = 2*np.array([E_probes[:,i], E_probes[:,i+nmask]]).T
-#         Minv = np.linalg.inv(M)
-
-#         est = Minv.dot(delI)
-        
-    B = np.diag(np.ones((nmask,2*nmask))[0], k=0)[:nmask,:2*nmask] + np.diag(np.ones((nmask,2*nmask))[0], k=nmask)[:nmask,:2*nmask]
-    Bfull = np.tile(B, len(wavelengths) )
-    
-    H1 = np.diag( Bfull.dot( E_probes[:2*nmask*nwaves] ))
-    H2 = np.diag( Bfull.dot( E_probes[2*nmask*nwaves:] ))
-    Hinv = 4*np.hstack((H1,H2))
-    print(Hinv.shape)
-    
-    H = np.linalg.inv(Hinv.T@Hinv)@Hinv.T
-    print(H.shape)
-    
-    E_est[i] = H.dot(I_diff)
-        
-    E_est_2d = np.zeros((sysi.npsf,sysi.npsf), dtype=np.complex128)
-    np.place(E_est_2d, mask=dark_mask, vals=E_est)
-    
-    return E_est_2d
 
 def run_efc_pwp(sysi, 
+                wavelengths,
                 probes,
                     jac, 
                     reg_fun,
@@ -207,31 +111,40 @@ def run_efc_pwp(sysi,
             efc_matrix = reg_fun(jac_cp, reg_cond).get()
         
         sysi.set_dm1(dm_ref + dm_command)
-        E_est = run_pwp(sysi, probes, jac, dark_mask)
+        E_ests = pwp.run_pwp_broad(sysi, wavelengths, probes, dark_mask, use='j', jacobian=jac/2)
         I_exact = sysi.snap()
         
-        commands.append(sysi.get_dm1())
-        efields.append(copy.copy(E_est))
-        images.append(copy.copy(I_exact))
+        I_exact = 0
+        I_est = 0
+        for j in range(len(wavelengths)):
+            xnew = np.concatenate( (E_ests[j][dark_mask].real, E_ests[j][dark_mask].imag) )
+            x = xnew if j==0 else np.concatenate( (x,xnew) )
+            
+            I_est += np.abs(E_ests[j])**2/len(wavelengths)
+            I_exact += sysi.snap()/len(wavelengths)
+#         efield_ri = np.concatenate( (E_est[dark_mask].real, E_est[dark_mask].imag) )
+        del_dm = efc_matrix.dot(x).reshape(sysi.Nact,sysi.Nact)
         
-        efield_ri = np.concatenate( (E_est[dark_mask].real, E_est[dark_mask].imag) )
-        del_dm = efc_matrix.dot(efield_ri).reshape(sysi.Nact,sysi.Nact)
+        commands.append(sysi.get_dm1())
+        efields.append(copy.copy(E_ests))
+        
+        images.append(copy.copy(I_exact))
         
         dm_command -= efc_loop_gain * del_dm.reshape(sysi.Nact,sysi.Nact)
         
         if display_current or display_all:
             if not display_all: clear_output(wait=True)
                 
-            fig,ax = misc.myimshow3(commands[i], np.abs(E_est)**2, I_exact, 
+            fig,ax = misc.myimshow3(commands[i], I_est, I_exact, 
                                         'DM', 'Estimated Intensity', 'Image: Iteration {:d}'.format(i),
                                         lognorm2=True, vmin2=1e-12, lognorm3=True, vmin3=1e-12,
                                         return_fig=True, display_fig=True)
             if plot_sms:
-                sms_fig = utils.sms(U, s, alpha2, cp.array(efield_ri), N_DH, Imax_unocc, i)
+                sms_fig = utils.sms(U, s, alpha2, cp.array(x), N_DH, Imax_unocc, i)
         
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
-    return commands, efields, images
+    return commands, est_efields, images
 
 def run_efc_perfect(sysi, 
                     wavelengths, 
