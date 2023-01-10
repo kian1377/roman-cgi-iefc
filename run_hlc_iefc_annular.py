@@ -26,7 +26,8 @@ from wfsc import iefc_2dm as iefc
 from wfsc import utils
 
 # Set the name for this iteration of simulation
-data_set_name = 'hlc_annular_iefc_39_sim_v1'
+# data_set_name = 'hlc_annular_iefc_39_sim_v1'
+data_set_name = 'hlc_annular_iefc_39_sim_v2'
 
 iefc_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
 
@@ -99,8 +100,11 @@ calibration_modes[:] *= hlc.dm_mask.flatten()
 nmodes = calibration_modes.shape[0]
 print('Calibration modes required: {:d}'.format(nmodes))
 
-calibration_amplitude = 0.006 * hlc.wavelength_c.to(u.m).value
-probe_amplitude = 0.05 * hlc.wavelength_c.to(u.m).value
+# calibration_amplitude = 0.006 * hlc.wavelength_c.to(u.m).value
+# probe_amplitude = 0.05 * hlc.wavelength_c.to(u.m).value
+
+calibration_amplitude = 5e-9
+probe_amplitude = 1e-8
 
 n_calibrations = 10
 n_iefc_iterations_per_calib = 2

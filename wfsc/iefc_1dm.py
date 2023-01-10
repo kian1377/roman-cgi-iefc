@@ -20,93 +20,16 @@ reload(utils)
 
 from cgi_phasec_poppy import misc
 
-def create_fourier_modes(xfp, mask, Nact=34, use_both=True, circular_mask=True):
-    print("Creating Fourier modes: ", mask.shape)
-    intp = interpolate.interp2d(xfp, xfp, mask)
-    
-    # This creates the grid and frequencies
-    xs = np.linspace(-0.5, 0.5, Nact) * (Nact-1)
-    x, y = np.meshgrid(xs, xs)
-    x = x.ravel()
-    y = y.ravel()
-    
-    # Create the fourier frequencies. An odd number of modes is preferred for symmetry reasons.
-    if Nact % 2 == 0: 
-        fxs = np.fft.fftshift( np.fft.fftfreq(Nact+1) )
-    else:
-        fxs = np.fft.fftshift( np.fft.fftfreq(Nact) )
-        
-    fx, fy = np.meshgrid(fxs, fxs)
-    
-    # Select all Fourier modes of interest based on the dark hole mask and remove the piston mode
-    mask2 = intp(fxs * Nact, fxs * Nact) * (((fx!=0) + (fy!=0)) > 0) > 0
-    
-    fx = fx.ravel()[mask2.ravel()]
-    fy = fy.ravel()[mask2.ravel()]
-    
-    # The modes can rewritten to a single (np.outer(x, fx) + np.outer(y, fy))
-    if use_both:
-        M1 = [np.cos(2 * np.pi * (fi[0] * x + fi[1] * y)) for fi in zip(fx, fy)]
-        M2 = [np.sin(2 * np.pi * (fi[0] * x + fi[1] * y)) for fi in zip(fx, fy)]
-        
-        # Normalize the modes
-        M = np.array(M1+M2)
-    else:
-        M = np.array([np.sin(2 * np.pi * (fi[0] * x + fi[1] * y)) for fi in zip(fx, fy)])
-        
-    if circular_mask: 
-        circ = np.ones((Nact,Nact))
-        r = np.sqrt(x.reshape((Nact,Nact))**2 + y.reshape((Nact,Nact))**2)
-        circ[r>(Nact)/2] = 0
-        M[:] *= circ.flatten()
-        
-    M /= np.std(M, axis=1, keepdims=True)
-        
-    return M, fx, fy
-
-def fourier_mode(lambdaD_yx, rms=1, acts_per_D_yx=(34,34), Nact=34, phase=0):
-    '''
-    Allow linear combinations of sin/cos to rotate through the complex space
-    * phase = 0 -> pure cos
-    * phase = np.pi/4 -> sqrt(2) [cos + sin]
-    * phase = np.pi/2 -> pure sin
-    etc.
-    '''
-    idy, idx = np.indices((Nact, Nact)) - (34-1)/2.
-    
-    #cfactor = np.cos(phase)
-    #sfactor = np.sin(phase)
-    prefactor = rms * np.sqrt(2)
-    arg = 2*np.pi*(lambdaD_yx[0]/acts_per_D_yx[0]*idy + lambdaD_yx[1]/acts_per_D_yx[1]*idx)
-    
-    return prefactor * np.cos(arg + phase)
-
-def create_probe_poke_modes(Nact, 
-                            xinds,
-                            yinds,
-                            display=False):
-    probe_modes = np.zeros((len(xinds), Nact, Nact))
-    for i in range(len(xinds)):
-        probe_modes[i, yinds[i], xinds[i]] = 1
-    
-    if display:
-        if len(xinds)==2:
-            misc.myimshow2(probe_modes[0], probe_modes[1])
-        elif len(xinds)==3:
-            misc.myimshow3(probe_modes[0], probe_modes[1], probe_modes[2])
-            
-    return probe_modes
-
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
 def take_measurement(sysi, probe_cube, probe_amplitude, return_all=False, pca_modes=None, display=False):
 
     if probe_cube.shape[0]==2:
         differential_operator = np.array([[-1,1,0,0],
-                                          [0,0,-1,1]]) / (2 * probe_amplitude * sysi.texp.value)
+                                          [0,0,-1,1]]) / (2 * probe_amplitude)
     elif probe_cube.shape[0]==3:
         differential_operator = np.array([[-1,1,0,0,0,0],
                                           [0,0,-1,1,0,0],
-                                          [0,0,0,0,-1,1]]) / (2 * probe_amplitude * sysi.texp.value)
+                                          [0,0,0,0,-1,1]]) / (2 * probe_amplitude)
     
     amps = np.linspace(-probe_amplitude, probe_amplitude, 2)
     images = []
@@ -209,8 +132,8 @@ def single_iteration(sysi, probe_cube, probe_amplitude, control_matrix, pixel_ma
     
     return reconstructed_coefficients
 
-def run(sysi, control_matrix, probe_modes, probe_amplitude, calibration_modes, weights,
-        num_iterations=10, gain=-0.5, leakage=0.0,
+def run(sysi, reg_fun, reg_conds, response_matrix, probe_modes, probe_amplitude, calibration_modes, weights,
+        num_iterations=10, loop_gain=0.5, leakage=0.0,
         display=False):
     print('Running I-EFC...')
     start = time.time()
@@ -222,8 +145,18 @@ def run(sysi, control_matrix, probe_modes, probe_amplitude, calibration_modes, w
     command = 0.0
     for i in range(num_iterations):
         print("\tClosed-loop iteration {:d} / {:d}".format(i+1, num_iterations))
-        delta_coefficients = single_iteration(sysi, probe_modes, probe_amplitude, control_matrix, weights.flatten()>0)
-        command = (1.0-leakage)*command + gain*delta_coefficients
+        if i==0 or i in reg_conds[0]:
+            reg_cond_ind = np.argwhere(i==reg_conds[0])[0][0]
+            reg_cond = reg_conds[1, reg_cond_ind]
+            print('\tComputing EFC matrix via ' + reg_fun.__name__ + ' with condition value {:.2e}'.format(reg_cond))
+        
+            control_matrix = reg_fun(response_matrix, 
+                                       np.array(weights.flatten()), 
+                                       nprobes=len(probe_modes),
+                                       rcond=reg_cond, 
+                                       pca_modes=None)
+        delta_coefficients = -single_iteration(sysi, probe_modes, probe_amplitude, control_matrix, weights.flatten()>0)
+        command = (1.0-leakage)*command + loop_gain*delta_coefficients
         
         # Reconstruct the full phase from the Fourier modes
         dm_command = calibration_modes.T.dot(command).reshape(sysi.Nact,sysi.Nact)

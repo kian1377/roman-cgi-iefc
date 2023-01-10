@@ -26,7 +26,7 @@
 #SBATCH --gres=gpu:1
 
 ### REQUIRED. Specify the time required for this job, hhh:mm:ss
-#SBATCH --time=24:00:00
+#SBATCH --time=48:00:00
 
 # --------------------------------------------------------------
 ### PART 2: Executes bash commands to run your job
@@ -35,5 +35,5 @@
 source ~/.bashrc
 conda activate poppy39-exp-env
 cd ~/Documents/roman-cgi-iefc
-python run_hlc_iefc_annular.py
+python run_spcw_iefc_annular.py
 

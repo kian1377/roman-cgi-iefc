@@ -1,0 +1,21 @@
+INFO:numexpr.utils:Note: detected 96 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+INFO:numexpr.utils:Note: NumExpr detected 96 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+Figure(1250x500)
+Figure(1250x500)
+Creating Fourier modes:  (150, 150)
+Traceback (most recent call last):
+  File "/home/u21/kianmilani/Documents/roman-cgi-iefc/run_spcw_iefc_annular.py", line 90, in <module>
+    calibration_modes, fx, fy = iefc.create_fourier_modes(xfp, 
+  File "/home/u21/kianmilani/Documents/roman-cgi-iefc/wfsc/iefc_2dm.py", line 63, in create_fourier_modes
+    M /= np.std(M, axis=1, keepdims=True)
+  File "<__array_function__ internals>", line 5, in std
+  File "/home/u21/kianmilani/.conda/envs/poppy39-exp-env/lib/python3.9/site-packages/numpy/core/fromnumeric.py", line 3581, in std
+    return _methods._std(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+  File "/home/u21/kianmilani/.conda/envs/poppy39-exp-env/lib/python3.9/site-packages/numpy/core/_methods.py", line 262, in _std
+    ret = _var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+  File "/home/u21/kianmilani/.conda/envs/poppy39-exp-env/lib/python3.9/site-packages/numpy/core/_methods.py", line 199, in _var
+    rcount = _count_reduce_items(arr, axis, keepdims=keepdims, where=where)
+  File "/home/u21/kianmilani/.conda/envs/poppy39-exp-env/lib/python3.9/site-packages/numpy/core/_methods.py", line 76, in _count_reduce_items
+    items *= arr.shape[mu.normalize_axis_index(ax, arr.ndim)]
+numpy.AxisError: axis 1 is out of bounds for array of dimension 1
+Detailed performance metrics for this job will be available at https://metrics.hpc.arizona.edu/#job_viewer?action=show&realm=SUPREMM&resource_id=73&local_job_id=4803565 by 8am on 2022/10/01.
