@@ -187,6 +187,7 @@ def create_fourier_modes(xfp, mask, Nact=34, use_both=True, circular_mask=True):
     
     # This creates the grid and frequencies
     xs = np.linspace(-0.5, 0.5, Nact) * (Nact-1)
+#     print(xs)
     x, y = np.meshgrid(xs, xs)
     x = x.ravel()
     y = y.ravel()
@@ -201,7 +202,9 @@ def create_fourier_modes(xfp, mask, Nact=34, use_both=True, circular_mask=True):
 #     print(fx)
     # Select all Fourier modes of interest based on the dark hole mask and remove the piston mode
     mask2 = intp(fxs * Nact, fxs * Nact) * (((fx!=0) + (fy!=0)) > 0) > 0
-    
+#     print(mask2.shape)
+#     misc.myimshow(mask2)
+
     fx = fx.ravel()[mask2.ravel()]
     fy = fy.ravel()[mask2.ravel()]
 #     print(fx)
@@ -225,7 +228,42 @@ def create_fourier_modes(xfp, mask, Nact=34, use_both=True, circular_mask=True):
         
     return M, fx, fy
 
-def fourier_mode(lambdaD_yx, rms=1, acts_per_D_yx=(34,34), Nact=34, phase=0):
+def select_fourier_modes(sysi, control_mask, fourier_sampling=0.75):
+    xfp = (np.linspace(-sysi.npsf/2, sysi.npsf/2-1, sysi.npsf) + 1/2) * sysi.psf_pixelscale_lamD
+    fpx, fpy = np.meshgrid(xfp,xfp)
+#     print(xfp)
+    
+    intp = interpolate.interp2d(xfp, xfp, control_mask) # setup the interpolation function
+    
+    xpp = np.linspace(-sysi.Nact/2, sysi.Nact/2-1, sysi.Nact) + 1/2
+    ppx, ppy = np.meshgrid(xpp,xpp)
+#     print(xpp)
+    
+    fourier_lim = fourier_sampling * np.round(xfp.max()/fourier_sampling)
+    xfourier = np.arange(-fourier_lim-fourier_sampling/2, fourier_lim+fourier_sampling, fourier_sampling)
+    fourier_x, fourier_y = np.meshgrid(xfourier, xfourier) 
+#     print(xfourier)
+    
+    # Select the x,y frequencies for the Fourier modes to calibrate the dark hole region
+    fourier_grid_mask = ( (intp(xfourier, xfourier) * (((fourier_x!=0) + (fourier_y!=0)) > 0)) > 0 )
+#     misc.myimshow(fourier_grid_mask)
+    
+    fxs = fourier_x.ravel()[fourier_grid_mask.ravel()]
+    fys = fourier_y.ravel()[fourier_grid_mask.ravel()]
+    sampled_fs = np.vstack((fxs, fys)).T
+#     print(sampled_fs.shape)
+    
+    cos_modes = []
+    sin_modes = []
+    for f in sampled_fs:
+        fx = f[0]/sysi.Nact
+        fy = f[1]/sysi.Nact
+        cos_modes.append( ( np.cos(2 * np.pi * (fx * ppx + fy * ppy)) * sysi.dm_mask ).flatten() ) 
+        sin_modes.append( ( np.sin(2 * np.pi * (fx * ppx + fy * ppy)) * sysi.dm_mask ).flatten() )
+    modes = cos_modes + sin_modes
+    return np.array(modes), sampled_fs
+
+def fourier_mode(lambdaD_yx, rms=1, acts_per_D_yx=(48,48), Nact=48, phase=0):
     '''
     Allow linear combinations of sin/cos to rotate through the complex space
     * phase = 0 -> pure cos
@@ -241,6 +279,30 @@ def fourier_mode(lambdaD_yx, rms=1, acts_per_D_yx=(34,34), Nact=34, phase=0):
     arg = 2*np.pi*(lambdaD_yx[0]/acts_per_D_yx[0]*idy + lambdaD_yx[1]/acts_per_D_yx[1]*idx)
     
     return prefactor * np.cos(arg + phase)
+
+def create_fourier_probes(fourier_modes, Nact=48, display_probes=False): 
+    # make 2 probe modes from the sum of the cos and sin fourier modes
+    nfs = fourier_modes.shape[0]//2
+    probe1 = fourier_modes[:nfs].sum(axis=0).reshape(Nact,Nact)
+    probe2 = fourier_modes[nfs:].sum(axis=0).reshape(Nact,Nact)
+
+    probe1 /= probe1.max()
+    probe2 /= probe2.max()
+
+    probe_modes = np.array([probe1,probe2])
+    probe_modes.shape
+    
+    if display_probes:
+        misc.myimshow2(probe1, probe2)
+
+        oversample = 4
+        probe1_fft = np.fft.fftshift(np.fft.fft2(misc.pad_or_crop(probe1, Nact*oversample)))
+        probe2_fft = np.fft.fftshift(np.fft.fft2(misc.pad_or_crop(probe2, Nact*oversample)))
+
+        misc.myimshow2(np.abs(probe1_fft), np.abs(probe2_fft), 
+                       pxscl1=1/oversample, pxscl2=1/oversample)
+    
+    return probe_modes
 
 def create_probe_poke_modes(Nact, 
                             xinds,
