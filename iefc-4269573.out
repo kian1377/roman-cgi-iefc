@@ -1,7 +1,0 @@
-INFO:numexpr.utils:Note: detected 96 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
-INFO:numexpr.utils:Note: NumExpr detected 96 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
-Traceback (most recent call last):
-  File "/home/u21/kianmilani/Documents/roman-cgi-iefc/run_hlc_iefc_annular.py", line 34, in <module>
-    shutil.rmtree(str(iefc_dir/data_set_name))
-NameError: name 'shutil' is not defined
-Detailed performance metrics for this job will be available at https://metrics.hpc.arizona.edu/#job_viewer?action=show&realm=SUPREMM&resource_id=73&local_job_id=4269573 by 8am on 2022/09/03.

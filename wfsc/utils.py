@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 
 from cgi_phasec_poppy import misc
 
-
 def map_acts_to_dm(actuators, dm_mask, Nact=48):
     inds = np.where(dm_mask.flatten().astype(int))[0]
     
@@ -27,6 +26,7 @@ def map_acts_to_dm(actuators, dm_mask, Nact=48):
 
 # Create control matrix
 def WeightedLeastSquares(A, W, rcond=1e-15):
+    # W is the weight matrix
     cov = A.T.dot(W.dot(A))
     return np.linalg.inv(cov + rcond * np.diag(cov).max() * np.eye(A.shape[1])).dot( A.T.dot(W) )
 

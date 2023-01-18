@@ -119,6 +119,56 @@ def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibra
     print('Calibration complete.')
     return slopes, images
 
+# def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibration_modes, start_mode=0):
+#     print('Calibrating I-EFC...')
+    
+#     slopes_1 = []
+#     slopes_2 = []
+#     images_1 = []
+#     images_2 = []
+    
+#     # Loop through all modes that you want to control
+#     start = time.time()
+#     for ci, calibration_mode in enumerate(calibration_modes[start_mode::]):
+#         try:
+#             slope1, slope2 = (0, 0)
+#             for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
+#                 # DM1: Apply calibration mode to DM1 (the Pupil plane DM)
+#                 sysi.add_dm1(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
+#                 differential_images_1, single_images_1 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1,
+#                                                                           return_all=True)
+                
+#                 images_1.append(single_images_1)
+#                 slope1 += s * differential_images_1 / (2 * calibration_amplitude)
+                
+#                 differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=2,
+#                                                                           return_all=True)
+                
+#                 images_2.append(single_images_2)
+#                 slope2 += s * differential_images_2 / (2 * calibration_amplitude)
+                
+#                 sysi.add_dm1(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) # remove the mode
+                
+                
+#             print("\tCalibrated mode {:d} / {:d} in {:.3f}s".format(ci+1+start_mode, calibration_modes.shape[0], 
+#                                                                     time.time()-start))
+#             slopes_1.append(slope1)
+#             slopes_2.append(slope2)
+#         except KeyboardInterrupt: 
+#             print('Calibration interrupted.')
+#             break
+    
+#     slopes_1 = np.array(slopes_1)
+#     slopes_2 = np.array(slopes_2)
+#     images_1 = np.array(images_1)
+#     images_2 = np.array(images_2)
+
+#     slopes = np.concatenate((slopes_1,slopes_2), axis=0) # this is the response cube
+#     images = np.concatenate((images_1,images_2), axis=0) # this is the calibration cube
+    
+#     print('Calibration complete.')
+#     return slopes, images
+
 def construct_control_matrix(response_matrix, weight_map, nprobes=2, rcond1=1e-2, rcond2=1e-2, WLS=True, pca_modes=None):
     weight_mask = weight_map>0
     
@@ -165,9 +215,10 @@ def single_iteration(sysi, probe_cube, probe_amplitude, control_matrix, pixel_ma
 
 def run(sysi, 
         reg_fun, reg_conds, response_matrix, 
-#         control_matrx,
+#         control_matrix,
         probe_modes, probe_amplitude, 
-        calibration_modes, weights,
+        calibration_modes, 
+        weight_map,
         num_iterations=10, 
         loop_gain=0.5, 
         leakage=0.0,
@@ -195,17 +246,18 @@ def run(sysi,
             print('\tComputing EFC matrix via ' + reg_fun.__name__ + ' with condition values ' + str(reg_cond))
         
             control_matrix = reg_fun(response_matrix, 
-                                     weights.flatten(), 
-                                     rcond1=reg_cond[0],
-                                     rcond2=reg_cond[1],
+                                     weight_map.flatten(), 
+                                     rcond1=reg_cond[0], 
+                                     rcond2=reg_cond[1], 
                                      nprobes=probe_modes.shape[0], pca_modes=None)
             
-        delta_coefficients = single_iteration(sysi, probe_modes, probe_amplitude, control_matrix, weights.flatten()>0)
+        delta_coefficients = single_iteration(sysi, probe_modes, probe_amplitude, control_matrix, weight_map.flatten()>0)
         commands = (1.0-leakage) * commands - loop_gain * delta_coefficients
+        print(commands.shape)
         
         # Reconstruct the full phase from the Fourier modes
-        dm1_command = calibration_modes.T.dot(commands[:nmodes]).reshape(sysi.Nact,sysi.Nact)
-        dm2_command = calibration_modes.T.dot(commands[nmodes:]).reshape(sysi.Nact,sysi.Nact)
+        dm1_command = ( calibration_modes.T.dot(commands[:nmodes]) ).reshape(sysi.Nact,sysi.Nact)
+        dm2_command = ( calibration_modes.T.dot(commands[nmodes:]) ).reshape(sysi.Nact,sysi.Nact)
         
         # Set the current DM state
         sysi.set_dm1(dm1_ref + dm1_command)

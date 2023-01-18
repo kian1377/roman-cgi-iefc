@@ -1,0 +1,9 @@
+INFO:numexpr.utils:Note: detected 96 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+INFO:numexpr.utils:Note: NumExpr detected 96 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+Figure(1250x500)
+Figure(500x500)
+Traceback (most recent call last):
+  File "/home/u21/kianmilani/Documents/roman-cgi-iefc/spc_wide_iefc_calibration.py", line 53, in <module>
+    weight_map = np.zeros(control_mask.shape, dtype=np.float64)
+NameError: name 'control_mask' is not defined
+Detailed performance metrics for this job will be available at https://metrics.hpc.arizona.edu/#job_viewer?action=show&realm=SUPREMM&resource_id=73&local_job_id=6226192 by 8am on 2023/01/18.
