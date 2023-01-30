@@ -3,8 +3,6 @@ import cupy as cp
 import astropy.units as u
 from astropy.io import fits
 from matplotlib.patches import Rectangle, Circle
-
-import os, shutil
 from pathlib import Path
 from IPython.display import clear_output
 from importlib import reload
@@ -25,125 +23,83 @@ from cgi_phasec_poppy import misc
 from wfsc import iefc_2dm as iefc
 from wfsc import utils
 
-# Set the name for this iteration of simulation
-data_set_name = 'spcw_annular_iefc_6-20_sim_v1'
-
-iefc_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
-
-if os.path.exists(str(iefc_dir/data_set_name)):
-    shutil.rmtree(str(iefc_dir/data_set_name))
-os.mkdir(str(iefc_dir/data_set_name))
-
-dm_dir = cgi.data_dir/'dm-acts'
-
-spcw = cgi.CGI(cgi_mode='spc-wide', 
-               npsf=150,
+sysi = cgi.CGI(cgi_mode='spc-wide', npsf=150,
               use_fpm=True,
-              use_pupil_defocus=False, 
+              use_pupil_defocus=True, 
               polaxis=0,
               use_opds=True,
              )
-spcw.show_dms()
+sysi.show_dms()
 
-npsf = spcw.npsf
-Nact = spcw.Nact
+npsf = sysi.npsf
+Nact = sysi.Nact
 
-reload(utils)
-xfp = np.linspace(-0.5, 0.5, npsf) * npsf * spcw.psf_pixelscale_lamD
-xf,yf = np.meshgrid(xfp,xfp)
+ref_psf = sysi.snap()
 
-edge = 0
-iwa = 6
-owa = 20
-rot = 0
+xfp = np.linspace(-0.5, 0.5, npsf) * npsf * sysi.psf_pixelscale_lamD
+fpx,fpy = np.meshgrid(xfp,xfp)
+fpr = np.sqrt(fpx**2 + fpy**2)
 
-# Create the dark-hole mask.
-dh_params = {
-    'inner_radius' : iwa,
-    'outer_radius' : owa,
-    'edge_position' : edge,
-    'direction' : '+x',
-    'rotation':rot,
-    'full':True,
-}
-dh_mask = utils.create_annular_focal_plane_mask(xf, yf, dh_params).ravel()
+# Create the mask that is used to select which region to make dark.
+iwa = 5.8
+owa = 20.2
+regions = [iwa, 6, 12, 20, owa]
+weights = [0.1, 0.8, 1, 0.1]
+weight_map = np.zeros((sysi.npsf,sysi.npsf), dtype=np.float64)
+for i in range(len(weights)):
+    roi_params = {
+        'inner_radius' : regions[i],
+        'outer_radius' : regions[i+1],
+        'edge_position' : 0,
+        'rotation':0,
+        'full':True,
+    }
+    roi = utils.create_annular_focal_plane_mask(fpx, fpy, roi_params)
+    weight_map += roi*weights[i]
 
-# Create the control region mask.
-control_params = {
-    'inner_radius' : iwa,
-    'outer_radius' : owa,
-    'edge_position' : edge,
-    'rotation':rot,
-    'full':True,
-}
-control_mask = utils.create_annular_focal_plane_mask(xf, yf, control_params).ravel()
+control_mask = weight_map>0
 
-relative_weight = 0.95
-weights = dh_mask * relative_weight + (1 - relative_weight) * control_mask
+calib_modes, fs = utils.select_fourier_modes(sysi, control_mask*(fpx>0), fourier_sampling=0.75) 
+nmodes = calib_modes.shape[0]
 
-# Create probe and calibration modes
-probe_modes = iefc.create_probe_poke_modes(Nact, 
-                                           xinds=[Nact//4, Nact//4+1],
-                                           yinds=[Nact//4, Nact//4], 
-                                           display=True)
+probe_modes = utils.create_probe_poke_modes(Nact, xinds=[Nact//4, Nact//4+1], yinds=[Nact//4, Nact//4], display=True)
 
-calibration_modes, fx, fy = iefc.create_fourier_modes(xfp, 
-                                                      control_mask.reshape((npsf,npsf)), 
-                                                      Nact, 
-                                                      circular_mask=False)
-calibration_modes[:] *= spcw.dm_mask.flatten()
+probe_amp = 3e-8
+calib_amp = 5e-9
 
-nmodes = calibration_modes.shape[0]
-print('Calibration modes required: {:d}'.format(nmodes))
+M = 3
+N = 20
 
-# calibration_amplitude = 0.006 * hlc.wavelength_c.to(u.m).value
-# probe_amplitude = 0.05 * hlc.wavelength_c.to(u.m).value
+iefc_dir = Path('C:/Users/Kian/Documents/data-files/roman-cgi-iefc-data')
 
-calibration_amplitude = 5e-9
-probe_amplitude = 1e-8
-
-n_calibrations = 5
-n_iefc_iterations_per_calib = 2
-
-response_cubes = []
-images = []
-dm1_acts = []
-dm2_acts = []
-for i in range(n_calibrations):
+for i in range(M):
+    response_cube, calibration_cube = iefc.calibrate(sysi, 
+                                                     probe_amp, probe_modes, 
+                                                     calib_amp, calib_modes, start_mode=0)
+    fname = 'spc_wide_2dm_annular_5.8-20.2_{:d}.pkl'.format(i)
+    misc.save_pickle(iefc_dir/'response-data'/fname, response_cube)
     
-    response_cube, calibration_cube = iefc.calibrate(spcw, probe_amplitude, probe_modes, 
-                                                     calibration_amplitude, calibration_modes, start_mode=0)
+    reg_fun = iefc.construct_control_matrix
+    reg_conds = [[0],
+                 [(1e-2, 1e-2)]]
     
-    control_matrix = iefc.construct_control_matrix(response_cube, 
-                                                   weights.flatten(), 
-                                                   rcond1=1e-2,
-                                                   rcond2=1e-2,
-                                                   nprobes=probe_modes.shape[0], pca_modes=None)
-    
-    ims, dm1_commands, dm2_commands = iefc.run(spcw, 
-                                                  control_matrix, 
+    images, dm1_commands, dm2_commands = iefc.run(sysi, 
+                                                  reg_fun,reg_conds,
+                                                  response_cube, 
                                                   probe_modes, 
-                                                  probe_amplitude, 
-                                                  calibration_modes, 
-                                                  weights, 
-                                                  num_iterations=n_iefc_iterations_per_calib, 
-                                                  gain=-0.5, leakage=0.0,
-                                                  display=False)
+                                                  probe_amp, 
+                                                  calib_modes, 
+                                                  weight_map, 
+                                                  num_iterations=50, 
+                                                  loop_gain=0.1, leakage=0.0,
+                                                  display_all=True,
+                                                 )
     
-    response_cubes.append(response_cube)
-    images.append(ims)
-    dm1_acts.append(dm1_commands)
-    dm2_acts.append(dm2_commands)
+    misc.save_pickle(iefc_dir/'response-data'/'images_{:d}.pkl'.format(i), images)
+    misc.save_pickle(iefc_dir/'response-data'/'dm1_commands_{:d}.pkl'.format(i), dm1_commands)
+    misc.save_pickle(iefc_dir/'response-data'/'dm2_commands_{:d}.pkl'.format(i), dm2_commands)
 
-response_cubes = np.array(response_cubes)
-images = cp.array(images).get()
-dm1_acts = np.array(dm1_acts)
-dm2_acts = np.array(dm2_acts)
 
-misc.save_pickle(iefc_dir/data_set_name/'response_cubes', response_cubes)
-misc.save_pickle(iefc_dir/data_set_name/'images', images)
-misc.save_pickle(iefc_dir/data_set_name/'dm1_acts', dm1_acts)
-misc.save_pickle(iefc_dir/data_set_name/'dm2_acts', dm2_acts)
 
     
     
