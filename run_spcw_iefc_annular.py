@@ -79,19 +79,23 @@ for i in range(M):
     fname = 'spc_wide_2dm_annular_5.8-20.2_{:d}.pkl'.format(i)
     misc.save_pickle(iefc_dir/'response-data'/fname, response_cube)
     
-    reg_fun = iefc.construct_control_matrix
-    reg_conds = [[0],
-                 [(1e-2, 1e-2)]]
+    control_matrix = construct_control_matrix(response_cube, 
+                                              weight_map.flatten(), 
+                                              nc1=nf,
+                                              nc2=nh,
+                                              rcond1=1e-1, 
+                                              rcond2=1e-1, 
+                                              nprobes=probe_modes.shape[0], pca_modes=None)
     
     images, dm1_commands, dm2_commands = iefc.run(sysi, 
-                                                  reg_fun,reg_conds,
-                                                  response_cube, 
+                                                  control_matrix,
+                                                  reg_fun,reg_conds,response_cube, 
                                                   probe_modes, 
                                                   probe_amp, 
                                                   calib_modes, 
                                                   weight_map, 
                                                   num_iterations=50, 
-                                                  loop_gain=0.1, leakage=0.0,
+                                                  loop_gain=0.2, leakage=0.0,
                                                   display_all=True,
                                                  )
     

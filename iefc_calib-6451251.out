@@ -1,0 +1,4 @@
+INFO:numexpr.utils:Note: detected 96 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+INFO:numexpr.utils:Note: NumExpr detected 96 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+Feb 03 13:48:57.492123 127010 slurmstepd   0x2ba2c6d56700: error: *** JOB 6451251 ON r5u37n1 CANCELLED AT 2023-02-03T13:48:57 ***
+Detailed performance metrics for this job will be available at https://metrics.hpc.arizona.edu/#job_viewer?action=show&realm=SUPREMM&resource_id=73&local_job_id=6451251 by 8am on 2023/02/04.

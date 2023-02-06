@@ -164,7 +164,7 @@ def get_random_probes(rms, alpha, dm_mask, fmin=1, fmax=17, nprobe=3):
     return np.asarray(allprobes)
 
 from scipy.linalg import hadamard
-def get_hadamard_modes(dm_mask): 
+def get_hadamard_modes_1(dm_mask): 
     Nacts = dm_mask.sum().astype(int)
     np2 = 2**int(np.ceil(np.log2(Nacts)))
     hmodes = hadamard(np2)
@@ -180,6 +180,31 @@ def get_hadamard_modes(dm_mask):
     had_modes = np.array(had_modes)
     
     return had_modes
+
+def get_hadamard_modes_2(Nacts, dm_mask): 
+    np2 = 2**int(np.ceil(np.log2(Nacts)))
+    hmodes = hadamard(np2)
+    print(hmodes.shape)
+    
+    had_modes_1 = []
+    had_modes_2 = []
+    
+    Nact = int(dm_mask.sum())
+
+    inds = np.where(dm_mask.flatten().astype(int))
+    for hmode in hmodes:
+        hmode_1 = hmode[:Nact]
+        hmode_2 = hmode[Nacts//2:Nact]
+        mode_1 = np.zeros((dm_mask.shape[0]**2))
+        mode_1[inds] = hmode_1
+        mode_2 = np.zeros((dm_mask.shape[0]**2))
+        mode_2[inds] = hmode_2
+        had_modes_1.append(mode_1)
+        had_modes_2.append(mode_2)
+    had_modes_1 = np.array(had_modes_1)
+    had_modes_2 = np.array(had_modes_2)
+    
+    return had_modes_1, had_modes_2
 
 def create_fourier_modes(xfp, mask, Nact=34, use_both=True, circular_mask=True):
     print("Creating Fourier modes: ", mask.shape)
