@@ -119,68 +119,110 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
 #     print('Calibration complete.')
 #     return slopes, images
 
+# def calibrate(sysi, 
+#               probe_amplitude, probe_modes, 
+#               calibration_amplitude, calibration_modes_1, calibration_modes_2,
+#               start_mode=0):
+#     print('Calibrating I-EFC...')
+    
+#     slopes_1 = []
+#     slopes_2 = []
+#     images_1 = []
+#     images_2 = []
+    
+#     # Loop through all modes that you want to control
+#     start = time.time()
+#     for ci, calibration_mode in enumerate(calibration_modes_1[start_mode::]):
+#         try:
+#             slope1, slope2 = (0, 0)
+#             for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
+#                 # Apply DM1 calibration mode
+#                 sysi.add_dm1(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
+#                 differential_images_1, single_images_1 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1,
+#                                                                           return_all=True)
+                
+#                 images_1.append(single_images_1)
+#                 slope1 += s * differential_images_1 / (2 * calibration_amplitude)
+                
+#                 sysi.add_dm1(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) # remove the mode
+                
+#             print("\tCalibrated DM1 mode {:d} / {:d} in {:.3f}s".format(ci+1+start_mode, calibration_modes_1.shape[0], 
+#                                                                     time.time()-start))
+#             slopes_1.append(slope1)
+#         except KeyboardInterrupt: 
+#             print('Calibration interrupted.')
+#             break
+            
+#     for ci, calibration_mode in enumerate(calibration_modes_2[start_mode::]):
+#         try:
+#             slope2 = 0
+#             for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
+#                 # Apply DM2 calibration mode
+#                 sysi.add_dm2(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
+#                 differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1,
+#                                                                           return_all=True)
+                
+#                 images_2.append(single_images_2)
+#                 slope2 += s * differential_images_2 / (2 * calibration_amplitude)
+                
+#                 sysi.add_dm2(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) 
+                
+#             print("\tCalibrated DM2 mode {:d} / {:d} in {:.3f}s".format(ci+1+start_mode, calibration_modes_2.shape[0], 
+#                                                                     time.time()-start))
+#             slopes_2.append(slope2)
+#         except KeyboardInterrupt: 
+#             print('Calibration interrupted.')
+#             break
+    
+#     slopes_1 = np.array(slopes_1)
+#     slopes_2 = np.array(slopes_2)
+#     images_1 = np.array(images_1)
+#     images_2 = np.array(images_2)
+
+#     slopes = np.concatenate((slopes_1,slopes_2), axis=0) # this is the response cube
+#     images = np.concatenate((images_1,images_2), axis=0) # this is the calibration cube
+    
+#     print('Calibration complete.')
+#     return slopes, images
+
 def calibrate(sysi, 
               probe_amplitude, probe_modes, 
-              calibration_amplitude, calibration_modes_1, calibration_modes_2,
-              start_mode=0):
+              calibration_amplitude, calibration_modes_1, calibration_modes_2):
     print('Calibrating I-EFC...')
     
-    slopes_1 = []
-    slopes_2 = []
-    images_1 = []
-    images_2 = []
+    nc = calibration_modes_1.shape[0]
+    if nc!=calibration_modes_2.shape[0]:
+        print('Calibration modes must be the same shape')
+        return
+    slopes = []
+    images = []
     
     # Loop through all modes that you want to control
     start = time.time()
-    for ci, calibration_mode in enumerate(calibration_modes_1[start_mode::]):
+    for i in range(nc):
         try:
-            slope1, slope2 = (0, 0)
+            slope = 0
             for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
-                # Apply DM1 calibration mode
-                sysi.add_dm1(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
-                differential_images_1, single_images_1 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1,
-                                                                          return_all=True)
+                # Set both DMs to the respective calibration mode
+                sysi.add_dm1(s * calibration_amplitude * calibration_modes_1[i].reshape(sysi.Nact, sysi.Nact))
+                sysi.add_dm2(s * calibration_amplitude * calibration_modes_2[i].reshape(sysi.Nact, sysi.Nact))
                 
-                images_1.append(single_images_1)
-                slope1 += s * differential_images_1 / (2 * calibration_amplitude)
+                differential_images, single_images = take_measurement(sysi, probe_modes, probe_amplitude, DM=1, return_all=True)
+                slope += s * differential_images / (2 * calibration_amplitude)
                 
-                sysi.add_dm1(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) # remove the mode
+                sysi.add_dm1(-s * calibration_amplitude * calibration_modes_1[i].reshape(sysi.Nact, sysi.Nact))
+                sysi.add_dm2(-s * calibration_amplitude * calibration_modes_2[i].reshape(sysi.Nact, sysi.Nact))
                 
-            print("\tCalibrated DM1 mode {:d} / {:d} in {:.3f}s".format(ci+1+start_mode, calibration_modes_1.shape[0], 
-                                                                    time.time()-start))
-            slopes_1.append(slope1)
-        except KeyboardInterrupt: 
-            print('Calibration interrupted.')
-            break
+                images.append(single_images)
             
-    for ci, calibration_mode in enumerate(calibration_modes_2[start_mode::]):
-        try:
-            slope2 = 0
-            for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
-                # Apply DM2 calibration mode
-                sysi.add_dm2(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
-                differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1,
-                                                                          return_all=True)
-                
-                images_2.append(single_images_2)
-                slope2 += s * differential_images_2 / (2 * calibration_amplitude)
-                
-                sysi.add_dm2(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) 
-                
-            print("\tCalibrated DM2 mode {:d} / {:d} in {:.3f}s".format(ci+1+start_mode, calibration_modes_2.shape[0], 
-                                                                    time.time()-start))
-            slopes_2.append(slope2)
+            slopes.append(slope)
+            print("\tCalibrated mode {:d} / {:d} in {:.3f}s".format(i+1, nc, time.time()-start))
         except KeyboardInterrupt: 
             print('Calibration interrupted.')
             break
     
-    slopes_1 = np.array(slopes_1)
-    slopes_2 = np.array(slopes_2)
-    images_1 = np.array(images_1)
-    images_2 = np.array(images_2)
-
-    slopes = np.concatenate((slopes_1,slopes_2), axis=0) # this is the response cube
-    images = np.concatenate((images_1,images_2), axis=0) # this is the calibration cube
+    slopes = np.array(slopes)
+    images = np.array(images)
     
     print('Calibration complete.')
     return slopes, images
