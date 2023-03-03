@@ -18,7 +18,7 @@ from . import utils
 from importlib import reload
 reload(utils)
 
-from cgi_phasec_poppy import misc
+import misc_funs as misc
 
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
 def take_measurement(sysi, probe_cube, probe_amplitude, return_all=False, pca_modes=None, display=False):

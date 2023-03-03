@@ -15,7 +15,7 @@ from . import pwp_1dm as pwp
 reload(pwp)
 reload(utils)
 
-from cgi_phasec_poppy import misc
+import misc_funs as misc
 
 def build_jacobian(sysi, wavelengths, epsilon, dark_mask, display=False):
     start = time.time()

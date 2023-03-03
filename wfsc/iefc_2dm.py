@@ -18,7 +18,7 @@ from . import utils
 from importlib import reload
 reload(utils)
 
-from cgi_phasec_poppy import misc
+import misc_funs as misc
 
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
 def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, pca_modes=None, display=False):
@@ -187,13 +187,11 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
 
 def calibrate(sysi, 
               probe_amplitude, probe_modes, 
-              calibration_amplitude, calibration_modes_1, calibration_modes_2):
+              calibration_amplitude, calibration_modes):
     print('Calibrating I-EFC...')
     
-    nc = calibration_modes_1.shape[0]
-    if nc!=calibration_modes_2.shape[0]:
-        print('Calibration modes must be the same shape')
-        return
+    Nact = sysi.Nact
+    nc = calibration_modes.shape[0]
     slopes = []
     images = []
     
@@ -204,14 +202,14 @@ def calibrate(sysi,
             slope = 0
             for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
                 # Set both DMs to the respective calibration mode
-                sysi.add_dm1(s * calibration_amplitude * calibration_modes_1[i].reshape(sysi.Nact, sysi.Nact))
-                sysi.add_dm2(s * calibration_amplitude * calibration_modes_2[i].reshape(sysi.Nact, sysi.Nact))
+                sysi.add_dm1(s * calibration_amplitude * calibration_modes[i,:Nact**2].reshape(Nact, Nact))
+                sysi.add_dm2(s * calibration_amplitude * calibration_modes[i,Nact**2:].reshape(Nact, Nact))
                 
                 differential_images, single_images = take_measurement(sysi, probe_modes, probe_amplitude, DM=1, return_all=True)
                 slope += s * differential_images / (2 * calibration_amplitude)
                 
-                sysi.add_dm1(-s * calibration_amplitude * calibration_modes_1[i].reshape(sysi.Nact, sysi.Nact))
-                sysi.add_dm2(-s * calibration_amplitude * calibration_modes_2[i].reshape(sysi.Nact, sysi.Nact))
+                sysi.add_dm1(-s * calibration_amplitude * calibration_modes[i,:Nact**2].reshape(Nact, Nact))
+                sysi.add_dm2(-s * calibration_amplitude * calibration_modes[i,Nact**2:].reshape(Nact, Nact))
                 
                 images.append(single_images)
             
@@ -308,8 +306,9 @@ def run(sysi,
 #         reg_fun, reg_conds, response_matrix, 
         control_matrix,
         probe_modes, probe_amplitude, 
-        calibration_modes_1,
-        calibration_modes_2,
+        calibration_modes,
+#         calibration_modes_1,
+#         calibration_modes_2,
         weight_map,
         num_iterations=10, 
         loop_gain=0.5, 
@@ -320,8 +319,7 @@ def run(sysi,
     print('Running I-EFC...')
     start = time.time()
     
-    nc1 = calibration_modes_1.shape[0]
-    nc2 = calibration_modes_2.shape[0]
+    nc = calibration_modes.shape[0]
     
     # The metric
     metric_images = []
@@ -349,9 +347,13 @@ def run(sysi,
         print(commands.shape)
         
         # Reconstruct the full phase from the Fourier modes
-        dm1_command = ( calibration_modes_1.T.dot(commands[:nc1]) ).reshape(sysi.Nact,sysi.Nact)
-        dm2_command = ( calibration_modes_2.T.dot(commands[nc1:]) ).reshape(sysi.Nact,sysi.Nact)
-        
+        dm1_command = calibration_modes.T.dot(commands)[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
+        dm2_command = calibration_modes.T.dot(commands)[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
+#         dm1_command = calibration_modes[:,:sysi.Nact**2].T.dot(commands).reshape(sysi.Nact,sysi.Nact)
+#         dm2_command = calibration_modes[:,sysi.Nact**2:].T.dot(commands).reshape(sysi.Nact,sysi.Nact)
+#         dm1_command = ( calibration_modes_1.T.dot(commands[nc1:]) ).reshape(sysi.Nact,sysi.Nact)
+#         dm2_command = ( calibration_modes_2.T.dot(commands[nc1:]) ).reshape(sysi.Nact,sysi.Nact)
+        print(dm1_command.shape)
         # Set the current DM state
         sysi.set_dm1(dm1_ref + dm1_command)
         sysi.set_dm2(dm2_ref + dm2_command)

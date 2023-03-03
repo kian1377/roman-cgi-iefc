@@ -67,8 +67,7 @@ fourier_modes, fs = utils.select_fourier_modes(sysi, control_mask*(fpx>0), fouri
 nf = fourier_modes.shape[0]
 print(fourier_modes.shape)
 
-cos_modes = fourier_modes[:nf//2]
-sin_modes = fourier_modes[nf//2:]
+calib_modes = np.concatenate((fourier_modes, fourier_modes), axis=1)
 
 # had_modes = utils.get_hadamard_modes(sysi.dm_mask)[:1024]
 # nh = had_modes.shape[0]
@@ -80,10 +79,12 @@ sysi.reset_dms()
 response_cube, calibration_cube = iefc.calibrate(sysi, 
                                                  probe_amp, probe_modes, 
                                                  calib_amp, 
+                                                 calib_modes,
 #                                                  fourier_modes, had_modes,
-                                                 cos_modes, sin_modes)
+#                                                  cos_modes, sin_modes,
+                                                )
 
-fname = 'spc-wide_2dm_annular_cos_sin.pkl'
+fname = 'spc-wide_2dm_annular_2poke_fourier.pkl'
 iefc_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
 
 misc.save_pickle(iefc_dir/'response-data'/fname, response_cube)
