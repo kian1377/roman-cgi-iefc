@@ -7,6 +7,7 @@ else:
     from scipy.sparse import linalg as sLA
 
 from scipy import interpolate, ndimage
+from scipy.linalg import hadamard
 import time
 from astropy.io import fits
 from matplotlib.patches import Circle, Rectangle
@@ -163,7 +164,6 @@ def get_random_probes(rms, alpha, dm_mask, fmin=1, fmax=17, nprobe=3):
         misc.myimshow3(allprobes[0], allprobes[1], allprobes[2])
     return np.asarray(allprobes)
 
-from scipy.linalg import hadamard
 def get_hadamard_modes_1(dm_mask): 
     Nacts = dm_mask.sum().astype(int)
     np2 = 2**int(np.ceil(np.log2(Nacts)))
@@ -270,7 +270,7 @@ def select_fourier_modes(sysi, control_mask, fourier_sampling=0.75):
 #     print(xfourier)
     
     # Select the x,y frequencies for the Fourier modes to calibrate the dark hole region
-    fourier_grid_mask = ( (intp(xfourier, xfourier) * (((fourier_x!=0) + (fourier_y!=0)) > 0)) > 0 )
+    fourier_grid_mask = ( (intp(xfourier, xfourier) * (((fourier_x!=0) + (fourier_y!=0)) > 0)) > 0 ).T
 #     misc.myimshow(fourier_grid_mask)
     
     fxs = fourier_x.ravel()[fourier_grid_mask.ravel()]
@@ -344,3 +344,24 @@ def create_probe_poke_modes(Nact,
             misc.myimshow3(probe_modes[0], probe_modes[1], probe_modes[2])
             
     return probe_modes
+
+def get_radial_dist(shape, scaleyx=(1.0, 1.0), cenyx=None):
+    '''
+    Compute the radial separation of each pixel
+    from the center of a 2D array, and optionally 
+    scale in x and y.
+    '''
+    indices = np.indices(shape)
+    if cenyx is None:
+        cenyx = ( (shape[0] - 1) / 2., (shape[1] - 1)  / 2.)
+    radial = np.sqrt( (scaleyx[0]*(indices[0] - cenyx[0]))**2 + (scaleyx[1]*(indices[1] - cenyx[1]))**2 )
+    return radial
+
+def get_radial_contrast(im, mask, nbins=50, cenyx=None):
+    radial = get_radial_dist(im.shape, cenyx=cenyx)
+    bins = np.linspace(0, radial.max(), num=nbins, endpoint=True)
+    digrad = np.digitize(radial, bins)
+    profile = np.asarray([np.mean(im[ (digrad == i) & mask]) for i in np.unique(digrad)])
+    return bins, profile
+    
+

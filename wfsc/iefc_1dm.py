@@ -49,10 +49,10 @@ def take_measurement(sysi, probe_cube, probe_amplitude, return_all=False, pca_mo
         
     if display:
         if probe_cube.shape[0]==2:
-            misc.myimshow2(differential_images[0].reshape(sysi.npsf, sysi.npsf),
+            misc.imshow2(differential_images[0].reshape(sysi.npsf, sysi.npsf),
                            differential_images[1].reshape(sysi.npsf, sysi.npsf))
         elif probe_cube.shape[0]==3:
-            misc.myimshow3(differential_images[0].reshape(sysi.npsf, sysi.npsf),
+            misc.imshow3(differential_images[0].reshape(sysi.npsf, sysi.npsf),
                            differential_images[1].reshape(sysi.npsf, sysi.npsf),
                            differential_images[2].reshape(sysi.npsf, sysi.npsf))
     if return_all:
@@ -170,9 +170,11 @@ def run(sysi, reg_fun, reg_conds, response_matrix, probe_modes, probe_amplitude,
         metric_images.append(copy.copy(image))
         dm_commands.append(sysi.get_dm1())
         
-        if display: misc.myimshow2(dm_commands[i], image, 
-                                   'DM', 'Image: Iteration {:d}'.format(i+1),
-                                   lognorm2=True, vmin2=image.max()/1e6)
+        if display: 
+            misc.imshow2(dm_commands[i], image, 
+                         'DM', 'Image: Iteration {:d}'.format(i+1),
+                         pxscl2=sysi.psf_pixelscale_lamD, xlabel2='$\lambda/D$',
+                         lognorm2=True)
             
     print('I-EFC loop completed in {:.3f}s.'.format(time.time()-start))
     return metric_images, dm_commands
