@@ -15,8 +15,6 @@ import pickle
 
 import matplotlib.pyplot as plt
 
-from cgi_phasec_poppy import misc
-
 def map_acts_to_dm(actuators, dm_mask, Nact=48):
     inds = np.where(dm_mask.flatten().astype(int))[0]
     
