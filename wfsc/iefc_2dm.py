@@ -55,10 +55,10 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
         
     if display:
         if probe_cube.shape[0]==2:
-            misc.myimshow2(differential_images[0].reshape(sysi.npsf, sysi.npsf),
+            misc.imshow2(differential_images[0].reshape(sysi.npsf, sysi.npsf),
                            differential_images[1].reshape(sysi.npsf, sysi.npsf))
         elif probe_cube.shape[0]==3:
-            misc.myimshow3(differential_images[0].reshape(sysi.npsf, sysi.npsf),
+            misc.imshow3(differential_images[0].reshape(sysi.npsf, sysi.npsf),
                            differential_images[1].reshape(sysi.npsf, sysi.npsf),
                            differential_images[2].reshape(sysi.npsf, sysi.npsf))
     if return_all:
@@ -66,58 +66,58 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
     else:
         return differential_images
     
-# def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibration_modes, start_mode=0):
-#     print('Calibrating I-EFC...')
+def calibrate(sysi, probe_amplitude, probe_modes, calibration_amplitude, calibration_modes, start_mode=0):
+    print('Calibrating I-EFC...')
     
-#     slopes_1 = []
-#     slopes_2 = []
-#     images_1 = []
-#     images_2 = []
+    slopes_1 = []
+    slopes_2 = []
+    images_1 = []
+    images_2 = []
     
-#     # Loop through all modes that you want to control
-#     start = time.time()
-#     for ci, calibration_mode in enumerate(calibration_modes[start_mode::]):
-#         try:
-#             slope1, slope2 = (0, 0)
-#             for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
-#                 # DM1: Set the DM to the correct state
-#                 sysi.add_dm1(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
-#                 differential_images_1, single_images_1 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1,
-#                                                                           return_all=True)
+    # Loop through all modes that you want to control
+    start = time.time()
+    for ci, calibration_mode in enumerate(calibration_modes[start_mode::]):
+        try:
+            slope1, slope2 = (0, 0)
+            for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
+                # DM1: Set the DM to the correct state
+                sysi.add_dm1(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
+                differential_images_1, single_images_1 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1,
+                                                                          return_all=True)
                 
-#                 images_1.append(single_images_1)
-#                 slope1 += s * differential_images_1 / (2 * calibration_amplitude)
+                images_1.append(single_images_1)
+                slope1 += s * differential_images_1 / (2 * calibration_amplitude)
                 
-#                 sysi.add_dm1(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) # remove the mode
+                sysi.add_dm1(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) # remove the mode
                 
-#                 # DM2: Set the DM to the correct state
-#                 sysi.add_dm2(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
-#                 differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1,
-#                                                                           return_all=True)
+                # DM2: Set the DM to the correct state
+                sysi.add_dm2(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
+                differential_images_2, single_images_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1,
+                                                                          return_all=True)
                 
-#                 images_2.append(single_images_2)
-#                 slope2 += s * differential_images_2 / (2 * calibration_amplitude)
+                images_2.append(single_images_2)
+                slope2 += s * differential_images_2 / (2 * calibration_amplitude)
                 
-#                 sysi.add_dm2(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) 
+                sysi.add_dm2(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) 
                 
-#             print("\tCalibrated mode {:d} / {:d} in {:.3f}s".format(ci+1+start_mode, calibration_modes.shape[0], 
-#                                                                     time.time()-start))
-#             slopes_1.append(slope1)
-#             slopes_2.append(slope2)
-#         except KeyboardInterrupt: 
-#             print('Calibration interrupted.')
-#             break
+            print("\tCalibrated mode {:d} / {:d} in {:.3f}s".format(ci+1+start_mode, calibration_modes.shape[0], 
+                                                                    time.time()-start))
+            slopes_1.append(slope1)
+            slopes_2.append(slope2)
+        except KeyboardInterrupt: 
+            print('Calibration interrupted.')
+            break
     
-#     slopes_1 = np.array(slopes_1)
-#     slopes_2 = np.array(slopes_2)
-#     images_1 = np.array(images_1)
-#     images_2 = np.array(images_2)
+    slopes_1 = np.array(slopes_1)
+    slopes_2 = np.array(slopes_2)
+    images_1 = np.array(images_1)
+    images_2 = np.array(images_2)
 
-#     slopes = np.concatenate((slopes_1,slopes_2), axis=0) # this is the response cube
-#     images = np.concatenate((images_1,images_2), axis=0) # this is the calibration cube
+    slopes = np.concatenate((slopes_1,slopes_2), axis=0) # this is the response cube
+    images = np.concatenate((images_1,images_2), axis=0) # this is the calibration cube
     
-#     print('Calibration complete.')
-#     return slopes, images
+    print('Calibration complete.')
+    return slopes, images
 
 # def calibrate(sysi, 
 #               probe_amplitude, probe_modes, 
@@ -185,89 +185,56 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
 #     print('Calibration complete.')
 #     return slopes, images
 
-def calibrate(sysi, 
-              probe_amplitude, probe_modes, 
-              calibration_amplitude, calibration_modes):
-    print('Calibrating I-EFC...')
+# def calibrate(sysi, 
+#               probe_amplitude, probe_modes, 
+#               calibration_amplitude, calibration_modes):
+#     print('Calibrating I-EFC...')
     
-    Nact = sysi.Nact
-    nc = calibration_modes.shape[0]
-    slopes = []
-    images = []
+#     Nact = sysi.Nact
+#     nc = calibration_modes.shape[0]
+#     slopes = []
+#     images = []
     
-    # Loop through all modes that you want to control
-    start = time.time()
-    for i in range(nc):
-        try:
-            slope = 0
-            for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
-                # Set both DMs to the respective calibration mode
-                sysi.add_dm1(s * calibration_amplitude * calibration_modes[i,:Nact**2].reshape(Nact, Nact))
-                sysi.add_dm2(s * calibration_amplitude * calibration_modes[i,Nact**2:].reshape(Nact, Nact))
+#     # Loop through all modes that you want to control
+#     start = time.time()
+#     for i in range(nc):
+#         try:
+#             slope = 0
+#             for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
+#                 # Set both DMs to the respective calibration mode
+#                 sysi.add_dm1(s * calibration_amplitude * calibration_modes[i,:Nact**2].reshape(Nact, Nact))
+#                 sysi.add_dm2(s * calibration_amplitude * calibration_modes[i,Nact**2:].reshape(Nact, Nact))
                 
-                differential_images, single_images = take_measurement(sysi, probe_modes, probe_amplitude, DM=1, return_all=True)
-                slope += s * differential_images / (2 * calibration_amplitude)
+#                 differential_images, single_images = take_measurement(sysi, probe_modes, probe_amplitude, DM=1, return_all=True)
+#                 slope += s * differential_images / (2 * calibration_amplitude)
                 
-                sysi.add_dm1(-s * calibration_amplitude * calibration_modes[i,:Nact**2].reshape(Nact, Nact))
-                sysi.add_dm2(-s * calibration_amplitude * calibration_modes[i,Nact**2:].reshape(Nact, Nact))
+#                 sysi.add_dm1(-s * calibration_amplitude * calibration_modes[i,:Nact**2].reshape(Nact, Nact))
+#                 sysi.add_dm2(-s * calibration_amplitude * calibration_modes[i,Nact**2:].reshape(Nact, Nact))
                 
-                images.append(single_images)
+#                 images.append(single_images)
             
-            slopes.append(slope)
-            print("\tCalibrated mode {:d} / {:d} in {:.3f}s".format(i+1, nc, time.time()-start))
-        except KeyboardInterrupt: 
-            print('Calibration interrupted.')
-            break
+#             slopes.append(slope)
+#             print("\tCalibrated mode {:d} / {:d} in {:.3f}s".format(i+1, nc, time.time()-start))
+#         except KeyboardInterrupt: 
+#             print('Calibration interrupted.')
+#             break
     
-    slopes = np.array(slopes)
-    images = np.array(images)
+#     slopes = np.array(slopes)
+#     images = np.array(images)
     
-    print('Calibration complete.')
-    return slopes, images
+#     print('Calibration complete.')
+#     return slopes, images
 
-# def construct_control_matrix(response_matrix, weight_map, nprobes=2, rcond1=1e-2, rcond2=1e-2, WLS=True, pca_modes=None):
-#     weight_mask = weight_map>0
-    
-#     # Invert the matrix with an SVD and Tikhonov regularization
-#     masked_matrix = response_matrix[:, :, weight_mask].reshape((response_matrix.shape[0], -1)).T
-    
-#     # Add the extra PCA modes that are fitted
-#     if pca_modes is not None:
-#         double_pca_modes = np.concatenate( (pca_modes[:, weight_mask], pca_modes[:, weight_mask]), axis=1).T
-#         masked_matrix = np.hstack((masked_matrix, double_pca_modes))
-    
-#     nmodes = int(response_matrix.shape[0]/2)
-#     if WLS:
-#         print('Using Weighted Least Squares ')
-#         if nprobes==2:
-#             Wmatrix = np.diag(np.concatenate((weight_map[weight_mask], weight_map[weight_mask])))
-#         elif nprobes==3:
-#             Wmatrix = np.diag(np.concatenate((weight_map[weight_mask], weight_map[weight_mask], weight_map[weight_mask])))
-#         control_matrix_1 = utils.WeightedLeastSquares(masked_matrix[:,:nmodes], Wmatrix, rcond=rcond1)
-#         control_matrix_2 = utils.WeightedLeastSquares(masked_matrix[:,nmodes:], Wmatrix, rcond=rcond2)
-#     else: 
-#         print('Using Tikhonov Inverse')
-#         control_matrix_1 = utils.TikhonovInverse(masked_matrix[:,:nmodes], rcond=rcond1)
-#         control_matrix_2 = utils.TikhonovInverse(masked_matrix[:,nmodes:], rcond=rcond2)
-#     control_matrix = np.concatenate((control_matrix_1, control_matrix_2), axis=0)
-    
-#     if pca_modes is not None:
-#         # Return the control matrix minus the pca_mode coefficients
-#         return control_matrix[0:-pca_modes.shape[0]]
-#     else:
-#         return control_matrix
-
-def construct_control_matrix(response_matrix, 
-                             weight_map, 
-                             nc1, nc2, 
-                             nprobes=2, 
-                             rcond1=1e-2, 
-                             rcond2=1e-2, 
-                             WLS=True, 
-                             pca_modes=None):
+def construct_control_matrix(response_matrix, weight_map, nprobes=2, rcond1=1e-2, rcond2=1e-2, WLS=True, pca_modes=None):
     weight_mask = weight_map>0
     
+    # Invert the matrix with an SVD and Tikhonov regularization
     masked_matrix = response_matrix[:, :, weight_mask].reshape((response_matrix.shape[0], -1)).T
+    
+    # Add the extra PCA modes that are fitted
+    if pca_modes is not None:
+        double_pca_modes = np.concatenate( (pca_modes[:, weight_mask], pca_modes[:, weight_mask]), axis=1).T
+        masked_matrix = np.hstack((masked_matrix, double_pca_modes))
     
     nmodes = int(response_matrix.shape[0]/2)
     if WLS:
@@ -289,6 +256,39 @@ def construct_control_matrix(response_matrix,
         return control_matrix[0:-pca_modes.shape[0]]
     else:
         return control_matrix
+
+# def construct_control_matrix(response_matrix, 
+#                              weight_map, 
+#                              nc1, nc2, 
+#                              nprobes=2, 
+#                              rcond1=1e-2, 
+#                              rcond2=1e-2, 
+#                              WLS=True, 
+#                              pca_modes=None):
+#     weight_mask = weight_map>0
+    
+#     masked_matrix = response_matrix[:, :, weight_mask].reshape((response_matrix.shape[0], -1)).T
+    
+#     nmodes = int(response_matrix.shape[0]/2)
+#     if WLS:
+#         print('Using Weighted Least Squares ')
+#         if nprobes==2:
+#             Wmatrix = np.diag(np.concatenate((weight_map[weight_mask], weight_map[weight_mask])))
+#         elif nprobes==3:
+#             Wmatrix = np.diag(np.concatenate((weight_map[weight_mask], weight_map[weight_mask], weight_map[weight_mask])))
+#         control_matrix_1 = utils.WeightedLeastSquares(masked_matrix[:,:nmodes], Wmatrix, rcond=rcond1)
+#         control_matrix_2 = utils.WeightedLeastSquares(masked_matrix[:,nmodes:], Wmatrix, rcond=rcond2)
+#     else: 
+#         print('Using Tikhonov Inverse')
+#         control_matrix_1 = utils.TikhonovInverse(masked_matrix[:,:nmodes], rcond=rcond1)
+#         control_matrix_2 = utils.TikhonovInverse(masked_matrix[:,nmodes:], rcond=rcond2)
+#     control_matrix = np.concatenate((control_matrix_1, control_matrix_2), axis=0)
+    
+#     if pca_modes is not None:
+#         # Return the control matrix minus the pca_mode coefficients
+#         return control_matrix[0:-pca_modes.shape[0]]
+#     else:
+#         return control_matrix
     
 def single_iteration(sysi, probe_cube, probe_amplitude, control_matrix, pixel_mask_dark_hole):
     # Take a measurement
@@ -326,8 +326,8 @@ def run(sysi,
     dm1_commands = []
     dm2_commands = []
     
-    dm1_ref = sysi.get_dm1()
-    dm2_ref = sysi.get_dm2()
+    dm1_ref = sysi.get_dm1(np.zeros((5)))
+    dm2_ref = sysi.get_dm2(np.zeros((5)))
     commands = 0.0
     for i in range(num_iterations):
         print("\tClosed-loop iteration {:d} / {:d}".format(i+1, num_iterations))
@@ -347,8 +347,8 @@ def run(sysi,
         print(commands.shape)
         
         # Reconstruct the full phase from the Fourier modes
-        dm1_command = calibration_modes.T.dot(commands)[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
-        dm2_command = calibration_modes.T.dot(commands)[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
+        dm1_command = calibration_modes[:nc].T.dot(commands)[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
+        dm2_command = calibration_modes[nc:].T.dot(commands)[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
 #         dm1_command = calibration_modes[:,:sysi.Nact**2].T.dot(commands).reshape(sysi.Nact,sysi.Nact)
 #         dm2_command = calibration_modes[:,sysi.Nact**2:].T.dot(commands).reshape(sysi.Nact,sysi.Nact)
 #         dm1_command = ( calibration_modes_1.T.dot(commands[nc1:]) ).reshape(sysi.Nact,sysi.Nact)

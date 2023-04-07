@@ -14,7 +14,7 @@ from matplotlib.patches import Circle, Rectangle
 import pickle
 
 import matplotlib.pyplot as plt
-
+import misc_funs as misc
 def map_acts_to_dm(actuators, dm_mask, Nact=48):
     inds = np.where(dm_mask.flatten().astype(int))[0]
     
@@ -268,7 +268,7 @@ def select_fourier_modes(sysi, control_mask, fourier_sampling=0.75):
 #     print(xfourier)
     
     # Select the x,y frequencies for the Fourier modes to calibrate the dark hole region
-    fourier_grid_mask = ( (intp(xfourier, xfourier) * (((fourier_x!=0) + (fourier_y!=0)) > 0)) > 0 ).T
+    fourier_grid_mask = ( (intp(xfourier, xfourier) * (((fourier_x!=0) + (fourier_y!=0)) > 0)) > 0 )
 #     misc.myimshow(fourier_grid_mask)
     
     fxs = fourier_x.ravel()[fourier_grid_mask.ravel()]
@@ -337,9 +337,9 @@ def create_probe_poke_modes(Nact,
     
     if display:
         if len(xinds)==2:
-            misc.myimshow2(probe_modes[0], probe_modes[1])
+            misc.imshow2(probe_modes[0], probe_modes[1])
         elif len(xinds)==3:
-            misc.myimshow3(probe_modes[0], probe_modes[1], probe_modes[2])
+            misc.imshow3(probe_modes[0], probe_modes[1], probe_modes[2])
             
     return probe_modes
 
