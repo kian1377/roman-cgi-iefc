@@ -42,11 +42,11 @@ class PC(): # perfect coronagraph
         self.npix = 256
         self.oversample = 2
         self.spatial_resolution = self.f.to_value(u.m) * self.wavelength.to_value(u.m) / self.dm_diam.to_value(u.m)
-        self.npsf = 64
-        self.psf_pixelscale_lamD = self.spatial_resolution/self.f.to_value(u.m)*(self.dm_diam/self.wavelength_c).decompose().value/2
+        self.npsf = 128
+        self.psf_pixelscale_lamD = 1/4
         
         self.pupil_grid = hci.make_pupil_grid(self.npix*self.oversample, self.dm_diam.to_value(u.m) * self.oversample)
-        self.focal_grid = hci.make_focal_grid(2, 16, spatial_resolution=self.spatial_resolution)
+        self.focal_grid = hci.make_focal_grid(4, 16, spatial_resolution=self.spatial_resolution)
         self.prop = hci.FraunhoferPropagator(self.pupil_grid, self.focal_grid, self.f.to_value(u.m))
 
         self.aperture = hci.Field(np.exp(-(self.pupil_grid.as_('polar').r / (0.5 * self.dm_diam.to_value(u.m)))**30), self.pupil_grid)
@@ -83,7 +83,7 @@ class PC(): # perfect coronagraph
         self.dm_mask[r>0.0105] = 0 # had to set the threshold to 10.5 instead of 10.2 to include edge actuators
         
 #         self.dm_zernikes = poppy.zernike.arbitrary_basis(self.dm_mask, nterms=15, outside=0)
-        self.dm_zernikes = poppy.zernike.arbitrary_basis(np.array(self.dm_mask), nterms=15, outside=0)
+        self.dm_zernikes = poppy.zernike.arbitrary_basis(cp.array(self.dm_mask), nterms=15, outside=0).get()
         
         
     def set_dm1(self, command):
@@ -138,7 +138,7 @@ class SVC(): # scalar vortex coronagraph
     def __init__(self, 
                  npix = 256,
                  oversample = 4,
-                 fgrid_sampling = 4,
+                 psf_pixelscale_lamD=1/4,
                  fgrid_extent = 16,
                  wavelength=None, 
                  pupil_diam=2*u.m,
@@ -146,6 +146,7 @@ class SVC(): # scalar vortex coronagraph
                  dm1_dm2=200e-3*u.m,
                  aberration_distance=100e-3*u.m,
                  influence_functions=None,
+                 use_fpm=True,
                  charge=6,
                  norm=None,
                 ):
@@ -165,15 +166,18 @@ class SVC(): # scalar vortex coronagraph
         self.npix = npix
         self.oversample = oversample
         
-        self.fgrid_sampling = fgrid_sampling # number of pixels per resolution element (lambda*fnum)
+        self.psf_pixelscale_lamD = psf_pixelscale_lamD
+        self.fgrid_sampling = 1/psf_pixelscale_lamD # number of pixels per resolution element (lambda*fnum)
         self.fgrid_extent = fgrid_extent # number of resolution elements across grid (lambda*fnum)
-        self.npsf = 2*fgrid_sampling*fgrid_extent
         
         self.pupil_grid = hci.make_pupil_grid(int(npix*oversample), pupil_diam.to_value(u.m) * oversample)
-        self.focal_grid = hci.make_focal_grid(fgrid_sampling, fgrid_extent, 
+        self.focal_grid = hci.make_focal_grid(self.fgrid_sampling, self.fgrid_extent, 
                                          pupil_diameter=self.pupil_diam.to_value(u.m),
                                          focal_length=self.fnum * self.pupil_diam.to_value(u.m),
                                          reference_wavelength=self.wavelength_c.to_value(u.m))
+        self.npsf = self.focal_grid.dims[0]
+        self.norm = norm
+        
         self.prop = hci.FraunhoferPropagator(self.pupil_grid, self.focal_grid,
                                              focal_length=self.fnum*self.pupil_diam.to_value(u.m))
         
@@ -188,7 +192,6 @@ class SVC(): # scalar vortex coronagraph
         self.Nact = 34
         self.actuator_spacing = 1.00 * self.pupil_diam.to_value(u.m)/self.Nact
         
-        self.norm = norm
         
         # make the aberrations of the system (make sure to remove tip-tilt)
         aberration_ptv = 0.02 * self.wavelength_c.to_value(u.m)
@@ -204,6 +207,8 @@ class SVC(): # scalar vortex coronagraph
         self.coro = hci.VortexCoronagraph(self.pupil_grid, self.charge)
         self.lyot_stop = hci.Apodizer(self.lyot_mask)
         
+        self.use_fpm = use_fpm
+        
         if influence_functions is not None: 
             self.init_dms(influence_functions)
             
@@ -213,11 +218,11 @@ class SVC(): # scalar vortex coronagraph
         
         self.prop_between_dms = hci.FresnelPropagator(self.pupil_grid, self.dm1_dm2.to_value(u.m))
         
-#         self.dm_mask = np.ones((self.Nact,self.Nact), dtype=bool)
-#         xx = (np.linspace(0, self.Nact-1, self.Nact) - self.Nact/2 + 1/2) * self.actuator_spacing*2
-#         x,y = np.meshgrid(xx,xx)
-#         r = np.sqrt(x**2 + y**2)
-#         self.dm_mask[r>0.0105] = 0 # had to set the threshold to 10.5 instead of 10.2 to include edge actuators
+        self.dm_mask = np.ones((self.Nact,self.Nact), dtype=bool)
+        xx = (np.linspace(0, self.Nact-1, self.Nact) - self.Nact/2 + 1/2) * self.actuator_spacing*2
+        x,y = np.meshgrid(xx,xx)
+        r = np.sqrt(x**2 + y**2)
+        self.dm_mask[r>2.05] = 0 # had to set the threshold to 10.5 instead of 10.2 to include edge actuators
         
 #         self.dm_zernikes = poppy.zernike.arbitrary_basis(self.dm_mask, nterms=15, outside=0)
 #         self.dm_zernikes = poppy.zernike.arbitrary_basis(cp.array(self.dm_mask), nterms=15, outside=0).get()
@@ -291,12 +296,29 @@ class SVC(): # scalar vortex coronagraph
 
     def snap(self):
         
+#         if self.use_fpm:
+#             wf = hci.Wavefront(self.aperture, self.wavelength.to_value(u.m))
+#             wf = self.wfe_at_distance(wf)
+#             wf = self.prop_between_dms.backward(self.DM2(self.prop_between_dms.forward(self.DM1(wf))))
+#             wf = self.coro(wf)
+#             wf = self.lyot_stop(wf)
+#             im = self.prop(wf).intensity.shaped
+#         else: 
+#             wf = hci.Wavefront(self.aperture, self.wavelength.to_value(u.m))
+#             wf = self.wfe_at_distance(wf)
+#             wf = self.prop_between_dms.backward(self.DM2(self.prop_between_dms.forward(self.DM1(wf))))
+#             im = self.prop(wf).intensity.shaped
+            
         wf = hci.Wavefront(self.aperture, self.wavelength.to_value(u.m))
         wf = self.wfe_at_distance(wf)
         wf = self.prop_between_dms.backward(self.DM2(self.prop_between_dms.forward(self.DM1(wf))))
-        wf = self.coro(wf)
-        wf = self.lyot_stop(wf)
+        if self.use_fpm:
+            wf = self.coro(wf)
+            wf = self.lyot_stop(wf)
         im = self.prop(wf).intensity.shaped
+        
+        if self.norm is not None:
+            im /= self.norm
         
         return im
     

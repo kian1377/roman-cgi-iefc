@@ -15,7 +15,7 @@
 ### Optional. Specify email address to use for notification
 #SBATCH --mail-user=kianmilani@arizona.edu
 ### REQUIRED. Set the partition for your job.
-#SBATCH --partition=standard
+#SBATCH --partition=high_priority
 ### REQUIRED. Set the number of cores that will be used for this job.
 #SBATCH --ntasks=32
 ### REQUIRED. Set the number of nodes
@@ -23,7 +23,7 @@
 ### REQUIRED. Set the memory required for this job.
 #SBATCH --mem=64gb
 ### REQUIRED. Set the number of GPUs to use
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:0
 
 ### REQUIRED. Specify the time required for this job, hhh:mm:ss
 #SBATCH --time=8:00:00
@@ -35,5 +35,6 @@
 source ~/.bashrc
 conda activate poppy39-exp-env
 cd ~/Documents/roman-cgi-iefc
-python spc_wide_iefc_calibration.py
+### python spc_wide_iefc_calibration.py
+python hcipy_svc_iefc_calibration.py
 
