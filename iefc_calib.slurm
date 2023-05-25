@@ -15,7 +15,7 @@
 ### Optional. Specify email address to use for notification
 #SBATCH --mail-user=kianmilani@arizona.edu
 ### REQUIRED. Set the partition for your job.
-#SBATCH --partition=high_priority
+#SBATCH --partition=standard
 ### REQUIRED. Set the number of cores that will be used for this job.
 #SBATCH --ntasks=32
 ### REQUIRED. Set the number of nodes
@@ -26,7 +26,7 @@
 #SBATCH --gres=gpu:1
 
 ### REQUIRED. Specify the time required for this job, hhh:mm:ss
-#SBATCH --time=10:00:00
+#SBATCH --time=8:00:00
 
 # --------------------------------------------------------------
 ### PART 2: Executes bash commands to run your job

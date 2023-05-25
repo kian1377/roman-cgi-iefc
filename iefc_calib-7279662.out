@@ -1,0 +1,9 @@
+INFO:numexpr.utils:Note: detected 96 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+INFO:numexpr.utils:Note: NumExpr detected 96 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+Traceback (most recent call last):
+  File "/home/u21/kianmilani/Documents/roman-cgi-iefc/spc_wide_iefc_calibration.py", line 50, in <module>
+    wfsc.imshow1(ref_unocc_im, pxscl=c.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True)
+  File "/home/u21/kianmilani/Documents/wfsc-tests/wfsc_tests/imshows.py", line 64, in imshow1
+    if display_fig: display(fig)
+NameError: name 'display' is not defined
+Detailed performance metrics for this job will be available at https://metrics.hpc.arizona.edu/#job_viewer?action=show&realm=SUPREMM&resource_id=73&local_job_id=7279662 by 8am on 2023/05/25.
