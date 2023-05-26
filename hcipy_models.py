@@ -287,28 +287,20 @@ class SVC(): # scalar vortex coronagraph
         wf = hci.Wavefront(self.aperture, self.wavelength.to_value(u.m))
         wf = self.wfe_at_distance(wf)
         wf = self.prop_between_dms.backward(self.DM2(self.prop_between_dms.forward(self.DM1(wf))))
-        lyot_plane = self.coro(wf)
-        wf_post_lyot_mask = self.lyot_stop(lyot_plane)
-        wf_detector = self.prop(post_lyot_mask)
-        psf_wf = wf.real.shaped + 1j*wf.imag.shaped
-
-        return np.array(psf_wf)
+        if self.use_fpm:
+            wf = self.coro(wf)
+            wf = self.lyot_stop(wf)
+        wf = self.prop(wf)
+        
+        efield = wf.real.shaped + 1j*wf.imag.shaped
+        
+        if self.norm is not None:
+            efield /= np.sqrt(self.norm)
+            
+        return np.array(efield)
 
     def snap(self):
         
-#         if self.use_fpm:
-#             wf = hci.Wavefront(self.aperture, self.wavelength.to_value(u.m))
-#             wf = self.wfe_at_distance(wf)
-#             wf = self.prop_between_dms.backward(self.DM2(self.prop_between_dms.forward(self.DM1(wf))))
-#             wf = self.coro(wf)
-#             wf = self.lyot_stop(wf)
-#             im = self.prop(wf).intensity.shaped
-#         else: 
-#             wf = hci.Wavefront(self.aperture, self.wavelength.to_value(u.m))
-#             wf = self.wfe_at_distance(wf)
-#             wf = self.prop_between_dms.backward(self.DM2(self.prop_between_dms.forward(self.DM1(wf))))
-#             im = self.prop(wf).intensity.shaped
-            
         wf = hci.Wavefront(self.aperture, self.wavelength.to_value(u.m))
         wf = self.wfe_at_distance(wf)
         wf = self.prop_between_dms.backward(self.DM2(self.prop_between_dms.forward(self.DM1(wf))))
