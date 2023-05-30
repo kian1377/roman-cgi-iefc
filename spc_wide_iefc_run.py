@@ -103,20 +103,40 @@ probe_amp = 5e-8
 calib_amp = 5e-9
 
 differential_images, single_images = wfsc.iefc_2dm.take_measurement(c, 
-                                                                    probe_modes, probe_amp, 
-                                                                    return_all=True)
-ims = differential_images.reshape(3, c.npsf, c.npsf)
+                                                                   probe_modes, probe_amp, 
+                                                                   return_all=True)
+Ncalibs = 5
+Nitr = 20
+for i in range(Ncalibs):
+    
+    response_matrix, response_cube = wfsc.iefc_2dm.calibrate(c, 
+                                                             control_mask.ravel(),
+                                                             probe_amp, probe_modes, 
+                                                             calib_amp, fourier_modes, 
+                                                             return_all=True)
 
-response_matrix, response_cube = wfsc.iefc_2dm.calibrate(c, 
-                                                         control_mask.ravel(),
-                                                         probe_amp, probe_modes, 
-                                                         calib_amp, fourier_modes, 
-                                                         return_all=True)
+    misc.save_fits(iefc_dir/'response-data'/'spcwide_iefc_2dm_response_matrix_20230530_{:d}.fits'.format(i), 
+                   wfsc.utils.ensure_np_array(response_matrix))
+    misc.save_fits(iefc_dir/'response-data'/'spcwide_iefc_2dm_response_cube_20230530_{:d}.fits'.format(i), 
+                   wfsc.utils.ensure_np_array(response_cube))
+    
+    # Run iEFC
+    reg_cond = 1e-2
 
-misc.save_fits(iefc_dir/'response-data'/'spcwide_iefc_2dm_response_matrix_20230530.fits', 
-               wfsc.utils.ensure_np_array(response_matrix))
-misc.save_fits(iefc_dir/'response-data'/'spcwide_iefc_2dm_response_cube_20230530.fits', 
-               wfsc.utils.ensure_np_array(response_cube))
+    Wmatrix = np.diag(np.concatenate((weight_map[control_mask], weight_map[control_mask], weight_map[control_mask])))
+    cm_wls = wfsc.utils.WeightedLeastSquares(response_matrix, Wmatrix, rcond=reg_conds[i][0])
+    
+    images, dm1_commands, dm2_commands = wfsc.iefc_2dm.run(c, 
+                                              cm_wls,
+                                              probe_modes, 
+                                              probe_amp, 
+                                              fourier_modes,
+                                              control_mask, 
+                                              num_iterations=Nitr, 
+                                              loop_gain=0.25, 
+                                              leakage=0.0,
+                                              plot_all=True,
+                                             )
 
 
 
