@@ -141,7 +141,7 @@ class SVC(): # scalar vortex coronagraph
                  psf_pixelscale_lamD=1/4,
                  fgrid_extent = 16,
                  wavelength=None, 
-                 pupil_diam=2*u.m,
+                 pupil_diam=6.5*u.m,
                  fnum=20,
                  dm1_dm2=200e-3*u.m,
                  aberration_distance=100e-3*u.m,
