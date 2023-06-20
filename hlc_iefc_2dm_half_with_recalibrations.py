@@ -52,6 +52,8 @@ colmap = ListedColormap(colmap)
 
 # iefc_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
 iefc_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
+from datetime import datetime
+date = int(datetime.today().strftime('%Y%m%d'))
 
 dm1_flat = 2*fits.getdata(cgi.data_dir/'dm-acts'/'flatmaps'/'hlc_flattened_dm1.fits')
 dm2_flat = 2*fits.getdata(cgi.data_dir/'dm-acts'/'flatmaps'/'hlc_flattened_dm2.fits')
@@ -126,7 +128,8 @@ weight_map = roi3 + relative_weight_1*(roi1*~roi3) + relative_weight_2*(roi2*~ro
 control_mask = weight_map>0
 wfsc.imshow1(weight_map)
 
-misc.save_fits(iefc_dir/'response-data'/'hlc_iefc_2dm_weight_map_20230619.fits', wfsc.utils.ensure_np_array(weight_map))
+misc.save_fits(iefc_dir/'response-data'/'hlc_iefc_2dm_weight_map_{:d}.fits'.format(date), 
+               wfsc.utils.ensure_np_array(weight_map))
 
 # Create the fourier modes and the probe modes
 calib_amp = 5e-9
@@ -158,7 +161,7 @@ reg_cond = 1e-2
 
 Wmatrix = np.diag(np.concatenate((weight_map[control_mask], weight_map[control_mask])))
 
-Ncalibs = 3
+Ncalibs = 10
 Nitr = 5
 for i in range(Ncalibs):
     print('Calibrations {:d}/{:d}'.format(i+1, Ncalibs))
@@ -171,9 +174,9 @@ for i in range(Ncalibs):
     response_sum = xp.sum(abs(response_cube), axis=(0,1))
     wfsc.imshow1(response_sum.reshape(npsf, npsf), lognorm=True)
     
-    misc.save_fits(iefc_dir/'response-data'/'hlc_iefc_2dm_response_matrix_{:d}_{:d}_20230619.fits'.format(i+1, Ncalibs), 
+    misc.save_fits(iefc_dir/'response-data'/'hlc_iefc_2dm_response_matrix_{:d}_{:d}_{:d}.fits'.format(i+1, Ncalibs, date), 
                wfsc.utils.ensure_np_array(response_matrix))
-    misc.save_fits(iefc_dir/'response-data'/'hlc_iefc_2dm_response_cube_{:d}_{:d}_20230619.fits'.format(i+1, Ncalibs), 
+    misc.save_fits(iefc_dir/'response-data'/'hlc_iefc_2dm_response_cube_{:d}_{:d}_{:d}.fits'.format(i+1, Ncalibs, date), 
                    wfsc.utils.ensure_np_array(response_cube))
     
     cm_wls = wfsc.utils.WeightedLeastSquares(response_matrix, Wmatrix, rcond=reg_cond)
@@ -185,15 +188,15 @@ for i in range(Ncalibs):
                                               fourier_modes,
                                               control_mask, 
                                               num_iterations=Nitr, 
-                                              loop_gain=0.1, 
+                                              loop_gain=0.25, 
                                               leakage=0.0,
                                               plot_all=True,
                                              )
-    misc.save_fits(iefc_dir/'images'/'hlc_iefc_2dm_images_{:d}_{:d}_20230619.fits'.format(i+1, Ncalibs), 
+    misc.save_fits(iefc_dir/'images'/'hlc_iefc_2dm_images_{:d}_{:d}_{:d}.fits'.format(i+1, Ncalibs, date), 
                    wfsc.utils.ensure_np_array(images))
-    misc.save_fits(iefc_dir/'dm-commands'/'hlc_iefc_2dm_dm1_{:d}_{:d}_20230619.fits'.format(i+1, Ncalibs), 
+    misc.save_fits(iefc_dir/'dm-commands'/'hlc_iefc_2dm_dm1_{:d}_{:d}_{:d}.fits'.format(i+1, Ncalibs, date), 
                    wfsc.utils.ensure_np_array(dm1_commands))
-    misc.save_fits(iefc_dir/'dm-commands'/'hlc_iefc_2dm_dm2_{:d}_{:d}_20230619.fits'.format(i+1, Ncalibs), 
+    misc.save_fits(iefc_dir/'dm-commands'/'hlc_iefc_2dm_dm2_{:d}_{:d}_{:d}.fits'.format(i+1, Ncalibs, date), 
                    wfsc.utils.ensure_np_array(dm2_commands))
 
 
