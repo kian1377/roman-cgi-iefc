@@ -176,7 +176,7 @@ for i in range(Ncalibs):
     misc.save_fits(iefc_dir/'response-data'/'hlc_iefc_2dm_response_cube_{:d}_{:d}_20230619.fits'.format(i+1, Ncalibs), 
                    wfsc.utils.ensure_np_array(response_cube))
     
-    cm_wls = wfsc.utils.WeightedLeastSquares(response_matrix, Wmatrix, rcond=reg_conds[i][0])
+    cm_wls = wfsc.utils.WeightedLeastSquares(response_matrix, Wmatrix, rcond=reg_cond)
     
     images, dm1_commands, dm2_commands = wfsc.iefc_2dm.run(c, 
                                               cm_wls,
