@@ -1,14 +1,0 @@
-<IPython.core.display.HTML object>
-INFO:numexpr.utils:Note: NumExpr detected 64 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
-INFO:numexpr.utils:NumExpr defaulting to 8 threads.
-Figure(500x500)
-15167884.4713195
-Figure(500x500)
-Figure(500x500)
-Figure(500x500)
-Figure(500x500)
-Figure(500x500)
-Saved data to:  /home/kianmilani/Projects/roman-cgi-iefc-data/response-data/hlc_iefc_2dm_weight_map_20230629.fits
-Figure(1250x500)
-Calibrating iEFC...
-	Calibrated mode 1 / 1780 in 7.770s	Calibrated mode 2 / 1780 in 15.509s	Calibrated mode 3 / 1780 in 23.245s	Calibrated mode 4 / 1780 in 30.865s	Calibrated mode 5 / 1780 in 38.731s	Calibrated mode 6 / 1780 in 46.457s	Calibrated mode 7 / 1780 in 54.187s	Calibrated mode 8 / 1780 in 61.914s	Calibrated mode 9 / 1780 in 69.635s	Calibrated mode 10 / 1780 in 77.369s	Calibrated mode 11 / 1780 in 85.092s	Calibrated mode 12 / 1780 in 92.819s	Calibrated mode 13 / 1780 in 100.668s	Calibrated mode 14 / 1780 in 108.946s	Calibrated mode 15 / 1780 in 116.675s	Calibrated mode 16 / 1780 in 124.402s	Calibrated mode 17 / 1780 in 132.141s	Calibrated mode 18 / 1780 in 139.881s	Calibrated mode 19 / 1780 in 147.602s	Calibrated mode 20 / 1780 in 155.324s	Calibrated mode 21 / 1780 in 163.034s	Calibrated mode 22 / 1780 in 171.278s	Calibrated mode 23 / 1780 in 179.182s	Calibrated mode 24 / 1780 in 186.914s

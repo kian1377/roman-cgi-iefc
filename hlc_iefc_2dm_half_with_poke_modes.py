@@ -76,7 +76,7 @@ owa = 9
 roi_params = {
         'inner_radius' : iwa,
         'outer_radius' : owa,
-        'edge' : 2,
+#         'edge' : 2,
         'rotation':0,
         'full':True,
     }
@@ -87,7 +87,7 @@ owa = 9.7
 roi_params = {
         'inner_radius' : iwa,
         'outer_radius' : owa,
-        'edge' : 2,
+#         'edge' : 2,
         'rotation':0,
         'full':True,
     }
@@ -98,7 +98,7 @@ owa = 6
 roi_params = {
         'inner_radius' : iwa,
         'outer_radius' : owa,
-        'edge' : 2,
+#         'edge' : 2,
         'rotation':0,
         'full':True,
     }
@@ -112,9 +112,10 @@ wfsc.imshow1(weight_map)
 
 misc.save_fits(iefc_dir/'response-data'/f'hlc_iefc_2dm_weight_map_{date}.fits', ensure_np_array(weight_map))
 
+# MAKE THE PROBE MODES
 probe_amp = 2.5e-8
 fourier_modes, fs = wfsc.utils.select_fourier_modes(c, control_mask*(fpx>0), fourier_sampling=1) 
-probe_modes = wfsc.utils.create_fourier_probes(fourier_modes, plot=True)
+probe_modes = wfsc.utils.create_fourier_probes(fourier_modes, shift_cos=(10,10), shift_sin=(-10,-10), plot=True)
 
 Nacts = int(c.dm_mask.sum())
 
