@@ -1,0 +1,17 @@
+<IPython.core.display.HTML object>
+2023-07-07 17:34:56,425	INFO worker.py:1636 -- Started a local Ray instance.
+INFO:numexpr.utils:Note: NumExpr detected 64 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+INFO:numexpr.utils:NumExpr defaulting to 8 threads.
+[38707575.47272583 39321120.8208112  39547077.1074424  39943806.87193675
+ 39965070.57571509] ph / (s m2)
+Figure(500x500)
+2981884.6766394516
+Figure(500x500)
+Figure(500x500)
+Figure(500x500)
+Figure(500x500)
+Figure(500x500)
+Saved data to:  /home/kianmilani/Projects/roman-cgi-iefc-data/response-data/hlcbb_iefc_2dm_weight_map_20230707.fits
+Figure(1250x500)
+Calibrating iEFC...
+	Calibrated mode 1/1780 in 20.734s	Calibrated mode 2/1780 in 40.507s	Calibrated mode 3/1780 in 60.272s	Calibrated mode 4/1780 in 80.032s	Calibrated mode 5/1780 in 99.813s	Calibrated mode 6/1780 in 119.570s	Calibrated mode 7/1780 in 139.392s	Calibrated mode 8/1780 in 159.137s	Calibrated mode 9/1780 in 178.881s	Calibrated mode 10/1780 in 198.627s	Calibrated mode 11/1780 in 218.375s	Calibrated mode 12/1780 in 238.125s	Calibrated mode 13/1780 in 257.878s
