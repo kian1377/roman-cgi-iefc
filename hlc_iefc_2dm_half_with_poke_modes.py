@@ -117,6 +117,10 @@ probe_amp = 2.5e-8
 fourier_modes, fs = wfsc.utils.select_fourier_modes(c, control_mask*(fpx>0), fourier_sampling=1) 
 probe_modes = wfsc.utils.create_fourier_probes(fourier_modes, shift_cos=(10,10), shift_sin=(-10,-10), plot=True)
 
+# calib_amp = 2.5e-9
+# calib_modes = wfsc.utils.get_hadamard_modes(c.dm_mask)
+# wfsc.imshow1(had_modes[3].reshape(c.Nact,c.Nact))
+
 Nacts = int(c.dm_mask.sum())
 
 calib_amp = 2.5e-9
