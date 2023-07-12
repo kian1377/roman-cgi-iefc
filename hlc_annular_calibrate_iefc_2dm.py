@@ -26,7 +26,6 @@ dm2_flatmap = fits.getdata(flatmaps_dir/'dm2_m_flat_hlc_band1.fits')
 dm1_design = fits.getdata(flatmaps_dir/'dm1_m_design_hlc_band1.fits')
 dm2_design = fits.getdata(flatmaps_dir/'dm2_m_design_hlc_band1.fits')
 
-
 # Initialize Mode
 hlci = cgi.CGI_PROPER(use_opds=False, use_fieldstop=False, quiet=True)
 npsf = hlci.npsf

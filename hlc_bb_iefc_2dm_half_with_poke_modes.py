@@ -116,7 +116,7 @@ owa = 9
 roi_params = {
         'inner_radius' : iwa,
         'outer_radius' : owa,
-#         'edge' : 2,
+        'edge' : 2,
         'rotation':0,
         'full':True,
     }
@@ -127,7 +127,7 @@ owa = 9.7
 roi_params = {
         'inner_radius' : iwa,
         'outer_radius' : owa,
-#         'edge' : 2,
+        'edge' : 2,
         'rotation':0,
         'full':True,
     }
@@ -138,7 +138,7 @@ owa = 6
 roi_params = {
         'inner_radius' : iwa,
         'outer_radius' : owa,
-#         'edge' : 2,
+        'edge' : 2,
         'rotation':0,
         'full':True,
     }
@@ -158,10 +158,7 @@ probe_amp = 2.5e-8
 fourier_modes, fs = wfsc.utils.select_fourier_modes(mode, control_mask*(fpx>0), fourier_sampling=0.5) 
 probe_modes = wfsc.utils.create_fourier_probes(fourier_modes, shift_cos=(10,10), shift_sin=(-10,-10), plot=True)
 
-Nacts = int(mode.dm_mask.sum())
-
 calib_amp = 2.5e-9
-
 Nacts = int(mode.dm_mask.sum())
 calib_modes = xp.zeros((Nacts, mode.Nact, mode.Nact))
 count=0
@@ -170,19 +167,42 @@ for i in range(mode.Nact):
         if mode.dm_mask[i,j]:
             calib_modes[count, i,j] = 1
             count+=1
-            
 calib_modes = calib_modes[:,:].reshape(Nacts, mode.Nact**2)
 
-# calculate response matrix
-response_matrix, response_cube = wfsc.iefc_2dm.calibrate(mode, 
+Ncalibs = 5
+Nitr = 20
+for i in range(Ncalibs):
+    
+    # calculate response matrix
+    response_matrix, response_cube = wfsc.iefc_2dm.calibrate(mode, 
                                                          control_mask.ravel(),
                                                          probe_amp, probe_modes, 
                                                          calib_amp, ensure_np_array(calib_modes), 
                                                          return_all=True)
-    
-misc.save_fits(iefc_dir/'response-data'/f'hlcbb_iefc_2dm_poke_response_matrix_{date}.fits', ensure_np_array(response_matrix))
-misc.save_fits(iefc_dir/'response-data'/f'hlcbb_iefc_2dm_poke_response_cube_{date}.fits', ensure_np_array(response_cube))
 
+    misc.save_fits(iefc_dir/'response-data'/f'hlcbb_iefc_2dm_poke_response_matrix_{date}_calib{i+1}.fits', ensure_np_array(response_matrix))
+    misc.save_fits(iefc_dir/'response-data'/f'hlcbb_iefc_2dm_poke_response_cube_{date}_calib{i+1}.fits', ensure_np_array(response_cube))
+    
+    reg_cond = 1e-2
+    cm_wls = wfsc.utils.WeightedLeastSquares(response_matrix, weight_map, nprobes=len(probe_modes), rcond=reg_cond)
+
+    images, dm1_commands, dm2_commands = wfsc.iefc_2dm.run(mode, 
+                                              cm_wls,
+                                              probe_modes, 
+                                              probe_amp, 
+                                              ensure_np_array(calib_modes),
+                                              control_mask, 
+                                              num_iterations=Nitr, 
+                                              loop_gain=0.5, 
+                                              leakage=0.0,
+                                              plot_all=True,
+                                             )
     
     
+    misc.save_fits(iefc_dir/'images'/f'hlcbb_iefc_2dm_poke_images_{date}_calib{i+1}.fits', ensure_np_array(images))
+    misc.save_fits(iefc_dir/'dm-commands'/f'hlcbb_iefc_2dm_poke_dm1_commands_{date}_calib{i+1}.fits', ensure_np_array(dm1_commands))
+    misc.save_fits(iefc_dir/'dm-commands'/f'hlcbb_iefc_2dm_poke_dm2_commands_{date}_calib{i+1}.fits', ensure_np_array(dm2_commands))
     
+    response_matrix = 0
+    response_cube = 0
+

@@ -77,7 +77,7 @@ class PC(): # perfect coronagraph
         self.prop_between_dms = hci.FresnelPropagator(self.pupil_grid, self.dm1_dm2.to_value(u.m))
         
         self.dm_mask = np.ones((self.Nact,self.Nact), dtype=bool)
-        xx = (np.linspace(0, self.Nact-1, self.Nact) - self.Nact/2 + 1/2) * self.actuator_spacing*2
+        xx = (np.linspace(0, self.Nact-1, self.Nact) - self.Nact/2 + 1/2) * self.actuator_spacing
         x,y = np.meshgrid(xx,xx)
         r = np.sqrt(x**2 + y**2)
         self.dm_mask[r>0.0105] = 0 # had to set the threshold to 10.5 instead of 10.2 to include edge actuators
@@ -151,7 +151,7 @@ class SVC(): # scalar vortex coronagraph
                  norm=None,
                 ):
         
-        self.wavelength_c = 575e-9*u.m
+        self.wavelength_c = 650e-9*u.m
         self.wavelength = self.wavelength_c if wavelength is None else wavelength
         self.pupil_diam = pupil_diam
         self.fnum = fnum
@@ -219,10 +219,12 @@ class SVC(): # scalar vortex coronagraph
         self.prop_between_dms = hci.FresnelPropagator(self.pupil_grid, self.dm1_dm2.to_value(u.m))
         
         self.dm_mask = np.ones((self.Nact,self.Nact), dtype=bool)
-        xx = (np.linspace(0, self.Nact-1, self.Nact) - self.Nact/2 + 1/2) * self.actuator_spacing*2
+        xx = (np.linspace(0, self.Nact-1, self.Nact) - self.Nact/2 + 1/2) * self.actuator_spacing
         x,y = np.meshgrid(xx,xx)
         r = np.sqrt(x**2 + y**2)
-        self.dm_mask[r>2.05] = 0 # had to set the threshold to 10.5 instead of 10.2 to include edge actuators
+        self.dm_mask[r>(self.pupil_diam.to_value(u.m)+ self.actuator_spacing)/2] = 0
+        
+        self.Nacts = int(self.dm_mask.sum())
         
 #         self.dm_zernikes = poppy.zernike.arbitrary_basis(self.dm_mask, nterms=15, outside=0)
 #         self.dm_zernikes = poppy.zernike.arbitrary_basis(cp.array(self.dm_mask), nterms=15, outside=0).get()
