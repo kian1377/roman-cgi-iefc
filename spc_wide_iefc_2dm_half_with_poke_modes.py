@@ -106,18 +106,9 @@ imshow1(weight_map)
 
 misc.save_fits(iefc_dir/'response-data'/f'spc_wide_iefc_2dm_weight_map_{date}.fits', ensure_np_array(weight_map))
 
-# MAKE THE PROBES
-# probe_amp = 2.5e-8
-# probe_modes = wfsc.utils.create_probe_poke_modes(Nact, [(Nact//5+2, Nact//3), (Nact//5+1, Nact//3)], plot=True)
-
-probe_amp = 2.5e-8
-fourier_modes, fs = wfsc.utils.select_fourier_modes(c, control_mask*(fpx>0), fourier_sampling=1) 
-probe_modes = wfsc.utils.create_fourier_probes(fourier_modes, shift_cos=(10,10), shift_sin=(-10,10), plot=True)
-
-Nacts = int(c.dm_mask.sum())
-
+# MAKE THE CALIBRATION AND PROBE MODES
 calib_amp = 2.5e-9
-
+Nacts = int(c.dm_mask.sum())
 calib_modes = xp.zeros((Nacts, c.Nact, c.Nact))
 count=0
 for i in range(c.Nact):
@@ -127,6 +118,13 @@ for i in range(c.Nact):
             count+=1
             
 calib_modes = calib_modes[:,:].reshape(Nacts, c.Nact**2)
+
+probe_amp = 2.5e-8
+probe_modes = wfsc.utils.create_probe_poke_modes(Nact, [(Nact//5+2, Nact//3), (Nact//5+1, Nact//3)], plot=True)
+
+# probe_amp = 2.5e-8
+# fourier_modes, fs = wfsc.utils.select_fourier_modes(c, control_mask*(fpx>0), fourier_sampling=1) 
+# probe_modes = wfsc.utils.create_fourier_probes(fourier_modes, shift_cos=(10,10), shift_sin=(-10,10), plot=True)
 
 response_matrix, response_cube = wfsc.iefc_2dm.calibrate(c, 
                                                          control_mask.ravel(),
