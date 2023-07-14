@@ -141,7 +141,8 @@ class SVC(): # scalar vortex coronagraph
                  psf_pixelscale_lamD=1/4,
                  fgrid_extent = 16,
                  wavelength=None, 
-                 pupil_diam=6.5*u.m,
+#                  pupil_diam=6.5*u.m,
+                 pupil_diam=10*u.mm,
                  fnum=20,
                  dm1_dm2=200e-3*u.m,
                  aberration_distance=100e-3*u.m,
@@ -184,7 +185,7 @@ class SVC(): # scalar vortex coronagraph
         self.aperture = hci.evaluate_supersampled(hci.circular_aperture(self.pupil_diam.to_value(u.m)),
                                                   self.pupil_grid, 
                                                   self.oversample)
-        self.lyot_mask = hci.evaluate_supersampled(hci.circular_aperture(0.95*self.pupil_diam.to_value(u.m)), 
+        self.lyot_mask = hci.evaluate_supersampled(hci.circular_aperture(0.90*self.pupil_diam.to_value(u.m)), 
                                                    self.pupil_grid, 
                                                    self.oversample)
 
