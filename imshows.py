@@ -1,16 +1,14 @@
-from .math_module import xp, _scipy, cupy_avail
+from math_module import xp, _scipy, cupy_avail
 if cupy_avail:
     import cupy as cp
 else:
     cp = False
 
-from . import utils
+import utils
 
 import numpy as np
 import scipy
-
 import astropy.units as u
-
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm, Normalize
@@ -27,7 +25,9 @@ def imshow1(arr,
             patches=None,
             grid=False, 
             figsize=(4,4), dpi=125, 
-            display_fig=True, return_fig=False):
+            display_fig=True, 
+            return_fig=False, 
+            save_fig=None):
     fig,ax = plt.subplots(nrows=1, ncols=1, figsize=figsize, dpi=dpi)
     
     arr = utils.ensure_np_array(arr)
@@ -61,6 +61,9 @@ def imshow1(arr,
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="4%", pad=0.075)
     fig.colorbar(im, cax=cax)
+    
+    if save_fig is not None: 
+        plt.savefig(save_fig, bbox_inches='tight')
     plt.close()
     
     if display_fig: 
@@ -81,6 +84,7 @@ def imshow2(arr1, arr2,
             patches1=None, patches2=None,
             display_fig=True, 
             return_fig=False, 
+            save_fig=None,
             figsize=(10,4), dpi=125, wspace=0.2):
     fig,ax = plt.subplots(nrows=1, ncols=2, figsize=figsize, dpi=dpi)
     
@@ -157,11 +161,14 @@ def imshow2(arr1, arr2,
     fig.colorbar(im, cax=cax)
         
     plt.subplots_adjust(wspace=wspace)
-    
+    if save_fig is not None: 
+        plt.savefig(save_fig, bbox_inches='tight')
     plt.close()
     
-    if display_fig: display(fig)
-    if return_fig: return fig,ax
+    if display_fig: 
+        display(fig)
+    if return_fig: 
+        return fig,ax
 
 def imshow3(arr1, arr2, arr3,
             title1=None, title2=None, title3=None, titlesize=12,
@@ -176,6 +183,7 @@ def imshow3(arr1, arr2, arr3,
             grid=False, grid1=False, grid2=False, grid3=False,
             display_fig=True, 
             return_fig=False,
+            save_fig=None,
             figsize=(14,7), dpi=125, wspace=0.3):
     fig,ax = plt.subplots(nrows=1, ncols=3, figsize=figsize, dpi=dpi)
     
@@ -284,9 +292,12 @@ def imshow3(arr1, arr2, arr3,
     fig.colorbar(im, cax=cax)
         
     plt.subplots_adjust(wspace=wspace)
-    
+    if save_fig is not None: 
+        plt.savefig(save_fig, bbox_inches='tight')
     plt.close()
     
-    if display_fig: display(fig)
-    if return_fig: return fig,ax
+    if display_fig: 
+        display(fig)
+    if return_fig: 
+        return fig,ax
     

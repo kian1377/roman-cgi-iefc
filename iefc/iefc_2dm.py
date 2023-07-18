@@ -1,12 +1,8 @@
-from wfsc_tests.math_module import xp
-from wfsc_tests import utils, imshows
+from math_module import xp, _scipy, cupy_avail
+import utils
+import imshows
 
 import numpy as np
-
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib.colors import LogNorm
-
 import astropy.units as u
 import time
 import copy
@@ -54,21 +50,21 @@ def calibrate(sysi,
               control_mask, 
               probe_amplitude, probe_modes, 
               calibration_amplitude, calibration_modes, 
-              start_mode=0,
               return_all=False):
     print('Calibrating iEFC...')
+    control_mask_flat = control_mask.ravel()
     
-    response_matrix_1 = []
-    response_matrix_2 = []
+    response_matrix_1 = [] # will hold the responses for calibration modes on DM1
+    response_matrix_2 = [] # will hold the responses for calibration modes on DM2
     if return_all: # be ready to store the full focal plane responses (difference images)
         response_cube_1 = []
         response_cube_2 = []
     
     # Loop through all modes that you want to control
     start = time.time()
-    for ci, calibration_mode in enumerate(calibration_modes[start_mode::]):
+    for ci, calibration_mode in enumerate(calibration_modes):
         response_1, response_2 = (0, 0)
-        for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
+        for s in [-1, 1]: # We need a + and - probe to estimate the response to the mode
             # DM1: Set the DM to the correct state
             sysi.add_dm1(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
             diff_ims_1 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1)
@@ -85,10 +81,10 @@ def calibrate(sysi,
         print("\r", end="")
         
         if probe_modes.shape[0]==2:
-            response_matrix_1.append( xp.concatenate([response_1[0, control_mask],
-                                                      response_1[1, control_mask]]) )
-            response_matrix_2.append( xp.concatenate([response_2[0, control_mask], 
-                                                      response_2[1, control_mask]]) )
+            response_matrix_1.append( xp.concatenate([response_1[0, control_mask_flat],
+                                                      response_1[1, control_mask_flat]]) )
+            response_matrix_2.append( xp.concatenate([response_2[0, control_mask_flat], 
+                                                      response_2[1, control_mask_flat]]) )
         elif probe_modes.shape[0]==3:
             response_matrix_1.append( xp.concatenate([response_1[0, control_mask], 
                                                       response_1[1, control_mask],
