@@ -35,8 +35,8 @@ wfsc.math_module.update_scipy(cupyx.scipy)
 
 import cgi_phasec_poppy as cgi
 
-# iefc_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
-iefc_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
+iefc_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
+# iefc_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
 
 dm1_flat = 2*fits.getdata(cgi.data_dir/'dm-acts'/'flatmaps'/'hlc_flattened_dm1.fits')
 dm2_flat = 2*fits.getdata(cgi.data_dir/'dm-acts'/'flatmaps'/'hlc_flattened_dm2.fits')
@@ -76,7 +76,7 @@ owa = 9
 roi_params = {
         'inner_radius' : iwa,
         'outer_radius' : owa,
-#         'edge' : 2,
+#         'edge' : 0.1,
         'rotation':0,
         'full':True,
     }
@@ -87,7 +87,7 @@ owa = 9.7
 roi_params = {
         'inner_radius' : iwa,
         'outer_radius' : owa,
-#         'edge' : 2,
+#         'edge' : 0.1,
         'rotation':0,
         'full':True,
     }
@@ -98,7 +98,7 @@ owa = 6
 roi_params = {
         'inner_radius' : iwa,
         'outer_radius' : owa,
-#         'edge' : 2,
+#         'edge' : 0.1,
         'rotation':0,
         'full':True,
     }

@@ -41,8 +41,8 @@ import misc_funs as misc
 from datetime import datetime
 date = int(datetime.today().strftime('%Y%m%d'))
 
-# iefc_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
-iefc_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
+iefc_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
+# iefc_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
 
 dm1_flat = 2*fits.getdata(cgi_phasec_poppy.data_dir/'dm-acts'/'flatmaps'/'hlc_flattened_dm1.fits')
 dm2_flat = 2*fits.getdata(cgi_phasec_poppy.data_dir/'dm-acts'/'flatmaps'/'hlc_flattened_dm2.fits')
@@ -51,8 +51,8 @@ dm2_flat = 2*fits.getdata(cgi_phasec_poppy.data_dir/'dm-acts'/'flatmaps'/'hlc_fl
 # Initialize source fluxes
 wavelength_c = 575e-9*u.m
 
-nlam = 5
-bandwidth = 0.10
+nlam = 3
+bandwidth = 0.05
 minlam = wavelength_c * (1 - bandwidth/2)
 maxlam = wavelength_c * (1 + bandwidth/2)
 wavelengths = np.linspace( minlam, maxlam, nlam )
