@@ -81,17 +81,17 @@ def calibrate(sysi,
         print("\r", end="")
         
         if probe_modes.shape[0]==2:
-            response_matrix_1.append( xp.concatenate([response_1[0, control_mask],
-                                                      response_1[1, control_mask]]) )
-            response_matrix_2.append( xp.concatenate([response_2[0, control_mask], 
-                                                      response_2[1, control_mask]]) )
-        elif probe_modes.shape[0]==3:
-            response_matrix_1.append( xp.concatenate([response_1[0, control_mask], 
-                                                      response_1[1, control_mask],
-                                                      response_1[2, control_mask]]) )
-            response_matrix_2.append( xp.concatenate([response_2[0, control_mask], 
-                                                      response_2[1, control_mask],
-                                                      response_2[2, control_mask]]) )
+            response_matrix_1.append( xp.concatenate([response_1[0, control_mask.ravel()],
+                                                      response_1[1, control_mask.ravel()]]) )
+            response_matrix_2.append( xp.concatenate([response_2[0, control_mask.ravel()], 
+                                                      response_2[1, control_mask.ravel()]]) )
+        elif probe_modes.shape[0]==3: # if 3 probes are being used
+            response_matrix_1.append( xp.concatenate([response_1[0, control_mask.ravel()], 
+                                                      response_1[1, control_mask.ravel()],
+                                                      response_1[2, control_mask.ravel()]]) )
+            response_matrix_2.append( xp.concatenate([response_2[0, control_mask.ravel()], 
+                                                      response_2[1, control_mask.ravel()],
+                                                      response_2[2, control_mask.ravel()]]) )
         
         if return_all: 
             response_cube_1.append(response_1)

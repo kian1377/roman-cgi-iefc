@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm
 from IPython.display import display
+from astropy.io import fits
 
 def pad_or_crop( arr_in, npix ):
     n_arr_in = arr_in.shape[0]
@@ -43,13 +44,13 @@ def centroid(arr, rounded=False):
     yc = round(weighted_sum_y/total_sum_y) if rounded else weighted_sum_y/total_sum_y
     return (yc, xc)
 
-# def map_acts_to_dm(actuators, dm_mask, Nact=48):
-#     inds = xp.where(xp.array(dm_mask).flatten().astype(int))[0]
+def map_acts_to_dm(actuators, dm_mask, Nact=48):
+    inds = xp.where(xp.array(dm_mask).flatten().astype(int))[0]
     
-#     command = xp.zeros((Nact, Nact))
-#     command.ravel()[inds] = actuators
+    command = xp.zeros((Nact, Nact))
+    command.ravel()[inds] = actuators
     
-#     return command
+    return command
 
 # Create control matrix
 def WeightedLeastSquares(A, weight_map, nprobes=2, rcond=1e-15):
@@ -430,6 +431,7 @@ def plot_radial_contrast(im, mask, pixelscale, nbins=30, cenyx=None, xlims=None,
     display(fig)
 
 def save_fits(fpath, data, header=None, ow=True, quiet=False):
+    data = ensure_np_array(data)
     if header is not None:
         keys = list(header.keys())
         hdr = fits.Header()
@@ -437,8 +439,6 @@ def save_fits(fpath, data, header=None, ow=True, quiet=False):
             hdr[keys[i]] = header[keys[i]]
     else: 
         hdr = None
-    if isinstance(data, cp.ndarray):
-        data = data.get()
     hdu = fits.PrimaryHDU(data=data, header=hdr)
     hdu.writeto(str(fpath), overwrite=ow) 
     if not quiet: print('Saved data to: ', str(fpath))

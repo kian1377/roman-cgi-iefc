@@ -33,7 +33,7 @@
 # --------------------------------------------------------------
 
 source ~/.bashrc
-conda activate poppy39-exp-env
+conda activate gpu311env
 cd ~/Documents/roman-cgi-iefc
-python run_spcw_iefc_annular.py
+python bbspc_wide_iefc_2dm_half_with_poke_modes.py
 
