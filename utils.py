@@ -59,7 +59,7 @@ def WeightedLeastSquares(A, weight_map, nprobes=2, rcond=1e-15):
     for i in range(nprobes-1):
         w = xp.concatenate((w, weight_map[control_mask]))
     W = xp.diag(w)
-    print(W.shape, A.shape)
+#     print(W.shape, A.shape)
     cov = A.T.dot(W.dot(A))
     return xp.linalg.inv(cov + rcond * xp.diag(cov).max() * xp.eye(A.shape[1])).dot( A.T.dot(W) )
 
@@ -416,14 +416,16 @@ def get_radial_contrast(im, mask, nbins=50, cenyx=None):
     profile = np.asarray([np.mean(im[ (digrad == i) & mask]) for i in np.unique(digrad)])
     return bins, profile
     
-def plot_radial_contrast(im, mask, pixelscale, nbins=30, cenyx=None, xlims=None, ylims=None):
+def plot_radial_contrast(im, mask, pixelscale, nbins=30, cenyx=None, 
+                         xlims=None, ylims=None, title='Contrast vs Radial Position'):
     bins, contrast = get_radial_contrast(im, mask, nbins=nbins, cenyx=cenyx)
     r = bins * pixelscale
 
     fig,ax = plt.subplots(nrows=1, ncols=1, dpi=125, figsize=(6,4))
     ax.semilogy(r,contrast)
-    ax.set_xlabel('radial position [$\lambda/D$]')
+    ax.set_xlabel('Radial Position [$\lambda/D$]')
     ax.set_ylabel('Contrast')
+    ax.set_title(title)
     ax.grid()
     if xlims is not None: ax.set_xlim(xlims[0], xlims[1])
     if ylims is not None: ax.set_ylim(ylims[0], ylims[1])
