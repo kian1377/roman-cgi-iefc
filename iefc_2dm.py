@@ -136,12 +136,15 @@ def run(sysi,
         calibration_modes,
         control_mask,
         num_iterations=10, 
-        starting_iteration=1,
+        starting_iteration=0,
         loop_gain=0.5, 
         leakage=0.0,
         plot_current=True,
         plot_all=False,
-        plot_radial_contrast=True):
+        plot_radial_contrast=True,
+        old_images=None,
+        old_dm1_commands=None,
+        old_dm2_commands=None):
     
     print('Running iEFC...')
     start = time.time()
@@ -159,7 +162,7 @@ def run(sysi,
     dm1_command = 0.0
     dm2_command = 0.0
     for i in range(num_iterations):
-        print("\tClosed-loop iteration {:d} / {:d}".format(i+starting_iteration, num_iterations+starting_iteration-1))
+        print("\tClosed-loop iteration {:d} / {:d}".format(i+starting_iteration+1, num_iterations+starting_iteration))
         
         delta_coefficients = single_iteration(sysi, probe_modes, probe_amplitude, control_matrix, control_mask)
         command = (1.0-leakage)*command + loop_gain*delta_coefficients
@@ -179,23 +182,31 @@ def run(sysi,
         dm1_commands.append(sysi.get_dm1())
         dm2_commands.append(sysi.get_dm2())
         
-        mean_contrast = xp.mean(image.ravel()[control_mask.ravel()])
-        print(f'\tMean Contrast of this iteration: {mean_contrast:.3e}')
+        mean_ni = xp.mean(image.ravel()[control_mask.ravel()])
+        print(f'\tMean NI of this iteration: {mean_ni:.3e}')
         
         if plot_current: 
             if not plot_all: clear_output(wait=True)
             imshows.imshow3(dm1_commands[i], dm2_commands[i], image, 
-                               'DM1', 'DM2', 'Image: Iteration {:d}'.format(i+starting_iteration),
+                               'DM1', 'DM2', 'Image: Iteration {:d}'.format(i+starting_iteration+1),
                             cmap1='viridis', cmap2='viridis',
                                lognorm3=True, vmin3=1e-11, pxscl3=sysi.psf_pixelscale_lamD)
             
             if plot_radial_contrast:
                 utils.plot_radial_contrast(image, control_mask, sysi.psf_pixelscale_lamD, nbins=50,
-                                           ylims=[1e-10, 1e-4])
+#                                            ylims=[1e-10, 1e-4],
+                                          )
                 
     metric_images = xp.array(metric_images)
     dm1_commands = xp.array(dm1_commands)
     dm2_commands = xp.array(dm2_commands)
+    
+    if old_images is not None:
+        metric_images = xp.concatenate([old_images, metric_images], axis=0)
+    if old_dm1_commands is not None: 
+        dm1_commands = xp.concatenate([old_dm1_commands, dm1_commands], axis=0)
+    if old_dm2_commands is not None:
+        dm2_commands = xp.concatenate([old_dm2_commands, dm2_commands], axis=0)
     print('Closed loop completed in {:.3f}s.'.format(time.time()-start))
     return metric_images, dm1_commands, dm2_commands
 
@@ -223,7 +234,7 @@ def run_varying_regs(sysi,
     all_dm1_commands = xp.array([dm1_start])
     all_dm2_commands = xp.array([dm2_start])
     
-    starting_iteration = 1
+    starting_iteration = 0
     for i in range(len(reg_conds)):
         print(f'Using regulariztaion condition number of {reg_conds[i][0]:.1e} for {reg_conds[i][1]} iterations.')
         control_matrix = reg_fun(response_matrix, rcond=reg_conds[i][0], **reg_kwargs)

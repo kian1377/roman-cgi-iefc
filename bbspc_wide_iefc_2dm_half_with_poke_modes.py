@@ -37,14 +37,14 @@ import iefc_2dm
 import utils
 from imshows import *
 
-iefc_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
-# iefc_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
+data_dir = iefc_2dm.iefc_data_dir
+response_dir = data_dir/'response-data'
 
 # Make the spectrum and create the actors and broadband mode
 wavelength_c = 825e-9*u.m
 
-nlam = 3
-bandwidth = 0.05
+nlam = 5
+bandwidth = 0.1
 minlam = wavelength_c * (1 - bandwidth/2)
 maxlam = wavelength_c * (1 + bandwidth/2)
 wavelengths = np.linspace( minlam, maxlam, nlam )
@@ -138,7 +138,7 @@ relative_weight_2 = 0.2
 weight_map = roi3 + relative_weight_1*(roi1*~roi3) + relative_weight_2*(roi2*~roi1*~roi3)
 control_mask = weight_map>0
 imshow1(weight_map, display_fig=False, save_fig='bbspc_wfov_weight_map.png')
-utils.save_fits(iefc_dir/'response-data'/f'bbspc_wfov_iefc_2dm_weight_map_{today}.fits', ensure_np_array(weight_map))
+utils.save_fits(response_dir/f'bbspc_wfov_iefc_2dm_weight_map_bw0.1_{today}.fits', ensure_np_array(weight_map))
 
 # Create the poke calibration modes
 calib_amp = 2.5e-9
@@ -168,9 +168,9 @@ response_matrix, response_cube = iefc_2dm.calibrate(mode,
                                                          return_all=True)
 
 
-utils.save_fits(iefc_dir/'response-data'/f'bbspc_wfov_iefc_2dm_poke_response_matrix_{today}.fits', 
+utils.save_fits(response_dir/f'bbspc_wfov_iefc_2dm_poke_response_matrix_bw0.1_{today}.fits', 
                 ensure_np_array(response_matrix))
-utils.save_fits(iefc_dir/'response-data'/f'bbspc_wfov_iefc_2dm_poke_response_cube_{today}.fits',
+utils.save_fits(response_dir/f'bbspc_wfov_iefc_2dm_poke_response_cube_bw0.1_{today}.fits',
                 ensure_np_array(response_cube))
 
 
