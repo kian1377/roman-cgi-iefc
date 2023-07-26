@@ -354,7 +354,7 @@ def create_all_poke_modes(dm_mask):
                 poke_modes[count, i,j] = 1
                 count+=1
 
-    poke_modes = poke_modes[:,:].reshape(Nacts, c.Nact**2)
+    poke_modes = poke_modes[:,:].reshape(Nacts, Nact**2)
     return poke_modes
 
 def create_sinc_probe(Nacts, amp, probe_radius, probe_phase=0, offset=(0,0), bad_axis='x'):
