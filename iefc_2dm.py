@@ -136,7 +136,6 @@ def run(sysi,
         calibration_modes,
         control_mask,
         num_iterations=10, 
-        starting_iteration=None,
         loop_gain=0.5, 
         leakage=0.0,
         plot_current=True,
@@ -162,11 +161,11 @@ def run(sysi,
     dm1_command = 0.0
     dm2_command = 0.0
     
-    if starting_iteration is None:
-        if old_images is not None:
-            starting_iteration = len(old_images)
-        else:
-            starting_iteration = 0
+    if old_images is None:
+        starting_iteration = 0
+    else:
+        starting_iteration = len(old_images)
+        
     for i in range(num_iterations):
         print("\tClosed-loop iteration {:d} / {:d}".format(i+starting_iteration+1, num_iterations+starting_iteration))
         
@@ -213,6 +212,7 @@ def run(sysi,
         dm1_commands = xp.concatenate([old_dm1_commands, dm1_commands], axis=0)
     if old_dm2_commands is not None:
         dm2_commands = xp.concatenate([old_dm2_commands, dm2_commands], axis=0)
+        
     print('Closed loop for given control matrix completed in {:.3f}s.'.format(time.time()-start))
     return metric_images, dm1_commands, dm2_commands
 
@@ -271,46 +271,70 @@ def run_varying_regs(sysi,
     return all_images, all_dm1_commands, all_dm2_commands
 
 
-# def run_with_recalibration(sysi,
-#                            Ncalibs=2,
-#                            Nitr_per_calib=10,
-#                            control_mask,
-#                            probe_modes, probe_amp,
-#                            calib_modes, calib_amp,
-#                            reg_fun,
-#                            reg_kwargs,
-#                           ):
-
-#     for i in range(Ncalibs):
-#         response_matrix, response_cube = wfsc.iefc_2dm.calibrate(sysi, 
-#                                                                  control_mask,
-#                                                                  probe_amp, probe_modes, 
-#                                                                  calib_amp, calib_modes, 
-#                                                                  return_all=True)
-
-
-#         control_matrix = reg_fun(**reg_kwargs)
-
-#         images, dm1_commands, dm2_commands = iefc_2dm.run(mode, 
-#                                                           control_matrix,
-#                                                           probe_modes, 
-#                                                           probe_amp, 
-#                                                           ensure_np_array(calib_modes),
-#                                                           control_mask, 
-#                                                           num_iterations=Nitr_per_calib, 
-# #                                                           starting_iteration=0,
-#                                                           loop_gain=0.5, 
-#                                                           leakage=0,
-#                                                           plot_all=True,
-#                                                           plot_radial_contrast=True,
-#                                                           old_images=images,
-#                                                           old_dm1_commands=dm1_commands,
-#                                                           old_dm2_commands=dm2_commands,
-#                                                          )
+def run_with_recalibration(sysi,
+                           control_mask,
+                           probe_amp, probe_modes,
+                           calib_amp, calib_modes,
+                           reg_fun, 
+                           reg_kwargs,
+                           reg_conds,
+                           num_iterations=10,
+                           calib_iterations=np.array([0]),
+                           loop_gain=0.5,
+                           leakage=0.0,
+                           plot_current=True,
+                           plot_all=False,
+                           plot_radial_contrast=True,
+                          ):
     
+    if np.isscalar(reg_conds):
+        reg_conds = np.array([reg_conds]*num_iterations)
+    elif len(reg_conds)<num_iterations:
+        raise ValueError('The length of the regularization conditions vector must be the same as the number of iterations')
     
+    ref_im = sysi.snap()
+    dm1_start = sysi.get_dm1()
+    dm2_start = sysi.get_dm2()
 
+    images = xp.array([ref_im])
+    dm1_commands = xp.array([dm1_start])
+    dm2_commands = xp.array([dm2_start])
+    
+    Ncalibs = len(calib_iterations)
+    calib_num = 0
+    for i in range(num_iterations):
+        if i in calib_iterations:
+            calib_num += 1
+            Nitr = calib_iterations[calib_num] - calib_iterations[calib_num-1] if calib_num<Ncalibs else num_iterations-calib_iterations[calib_num-1]
 
+            response_matrix, response_cube = calibrate(sysi, control_mask,
+                                                                 probe_amp, probe_modes, 
+                                                                 calib_amp, calib_modes, 
+                                                                 return_all=True)
+            
+            fp_response = xp.sqrt(xp.sum(abs(response_cube)**2, axis=(0,1))).reshape(sysi.npsf, sysi.npsf)
+            imshow1(fp_response, lognorm=True)
+            
+        control_matrix = reg_fun(response_matrix, reg_conds[i], **reg_kwargs)
+        
+        images, dm1_commands, dm2_commands = run(sysi, 
+                                                          control_matrix,
+                                                          probe_modes, 
+                                                          probe_amp, 
+                                                          calib_modes,
+                                                          control_mask, 
+                                                          num_iterations=Nitr, 
+                                                          loop_gain=loop_gain, 
+                                                          leakage=leakage,
+                                                          plot_current=plot_current,
+                                                          plot_all=plot_all,
+                                                          plot_radial_contrast=plot_radial_contrast,
+                                                          old_images=images,
+                                                          old_dm1_commands=dm1_commands,
+                                                          old_dm2_commands=dm2_commands,
+                                                         )
+        
+    return images, dm1_commands, dm2_commands
 
 
 

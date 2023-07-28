@@ -131,10 +131,10 @@ for i in range(Ncalibs):
                                                          calib_amp, calib_modes, 
                                                          return_all=True)
     
-    misc.save_fits(response_dir/f'hlc_iefc_2dm_response_matrix_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(response_matrix))
-    misc.save_fits(response_dir/f'hlc_iefc_2dm_response_cube_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(response_cube))
+    utils.save_fits(response_dir/f'hlc_iefc_2dm_response_matrix_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(response_matrix))
+    utils.save_fits(response_dir/f'hlc_iefc_2dm_response_cube_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(response_cube))
     
-    reg_conds = [(1e-1,3), (1e-3,2)]
+    reg_conds = [(1e-3,2), (1e-1,3)]
     reg_fun = utils.WeightedLeastSquares
     reg_kwargs = {
         'weight_map':weight_map,
@@ -157,12 +157,9 @@ for i in range(Ncalibs):
                                                                    plot_radial_contrast=False,
                                                                   )
     
-    misc.save_fits(data_dir/'images'/f'hlc_iefc_2dm_images_{i+1}_{Ncalibs}_{today}.fits', 
-                   ensure_np_array(images))
-    misc.save_fits(data_dir/'dm-commands'/f'hlc_iefc_2dm_dm1_{i+1}_{Ncalibs}_{today}.fits', 
-                   ensure_np_array(dm1_commands))
-    misc.save_fits(data_dir/'dm-commands'/f'hlc_iefc_2dm_dm2_{i+1}_{Ncalibs}_{today}.fits', 
-                   ensure_np_array(dm2_commands))
+    utils.save_fits(data_dir/'images'/f'hlc_iefc_2dm_images_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(images))
+    utils.save_fits(data_dir/'dm-commands'/f'hlc_iefc_2dm_dm1_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(dm1_commands))
+    utilsc.save_fits(data_dir/'dm-commands'/f'hlc_iefc_2dm_dm2_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(dm2_commands))
 
 
 
