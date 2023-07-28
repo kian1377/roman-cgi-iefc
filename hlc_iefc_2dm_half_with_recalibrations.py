@@ -159,7 +159,7 @@ for i in range(Ncalibs):
     
     utils.save_fits(data_dir/'images'/f'hlc_iefc_2dm_images_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(images))
     utils.save_fits(data_dir/'dm-commands'/f'hlc_iefc_2dm_dm1_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(dm1_commands))
-    utilsc.save_fits(data_dir/'dm-commands'/f'hlc_iefc_2dm_dm2_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(dm2_commands))
+    utils.save_fits(data_dir/'dm-commands'/f'hlc_iefc_2dm_dm2_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(dm2_commands))
 
 
 

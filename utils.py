@@ -210,49 +210,6 @@ def get_hadamard_modes(dm_mask):
     
     return had_modes
 
-def create_fourier_modes(xfp, mask, Nact=34, use_both=True, circular_mask=True):
-    intp = scipy.interpolate.interp2d(xfp, xfp, mask)
-    
-    # This creates the grid and frequencies
-    xs = np.linspace(-0.5, 0.5, Nact) * (Nact-1)
-    x, y = np.meshgrid(xs, xs)
-    x = x.ravel()
-    y = y.ravel()
-    
-    # Create the fourier frequencies. An odd number of modes is preferred for symmetry reasons.
-    if Nact % 2 == 0: 
-        fxs = np.fft.fftshift( np.fft.fftfreq(Nact+1) )
-    else:
-        fxs = np.fft.fftshift( np.fft.fftfreq(Nact) )
-        
-    fx, fy = np.meshgrid(fxs, fxs)
-#     print(fx)
-    # Select all Fourier modes of interest based on the dark hole mask and remove the piston mode
-    mask2 = intp(fxs * Nact, fxs * Nact) * ( ((fx!=0) + (fy!=0)) > 0 ) > 0
-    
-    fx = fx.ravel()[mask2.ravel()]
-    fy = fy.ravel()[mask2.ravel()]
-#     print(fx)
-    # The modes can rewritten to a single (np.outer(x, fx) + np.outer(y, fy))
-    if use_both:
-        M1 = [np.cos(2 * np.pi * (fi[0] * x + fi[1] * y)) for fi in zip(fx, fy)]
-        M2 = [np.sin(2 * np.pi * (fi[0] * x + fi[1] * y)) for fi in zip(fx, fy)]
-        
-        # Normalize the modes
-        M = np.array(M1+M2)
-    else:
-        M = np.array([np.sin(2 * np.pi * (fi[0] * x + fi[1] * y)) for fi in zip(fx, fy)])
-        
-    if circular_mask: 
-        circ = np.ones((Nact,Nact))
-        r = np.sqrt(x.reshape((Nact,Nact))**2 + y.reshape((Nact,Nact))**2)
-        circ[r>(Nact+1)/2] = 0
-        M[:] *= circ.flatten()
-        
-    M /= np.std(M, axis=1, keepdims=True)
-        
-    return M, fx, fy
-
 def select_fourier_modes(sysi, control_mask, fourier_sampling=0.75, use='both'):
     xfp = (np.linspace(-sysi.npsf/2, sysi.npsf/2-1, sysi.npsf) + 1/2) * sysi.psf_pixelscale_lamD
     fpx, fpy = np.meshgrid(xfp,xfp)
@@ -345,8 +302,8 @@ def create_probe_poke_modes(Nact,
 
 def create_all_poke_modes(dm_mask):
     Nact = dm_mask.shape[0]
-    Nacts = int(xp.sum(dm_mask))
-    poke_modes = xp.zeros((Nacts, Nact, Nact))
+    Nacts = int(np.sum(dm_mask))
+    poke_modes = np.zeros((Nacts, Nact, Nact))
     count=0
     for i in range(Nact):
         for j in range(Nact):
