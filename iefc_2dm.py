@@ -164,7 +164,7 @@ def run(sysi,
     if old_images is None:
         starting_iteration = 0
     else:
-        starting_iteration = len(old_images)
+        starting_iteration = len(old_images) - 1
         
     for i in range(num_iterations):
         print("\tClosed-loop iteration {:d} / {:d}".format(i+starting_iteration+1, num_iterations+starting_iteration))
@@ -244,24 +244,22 @@ def run_varying_regs(sysi,
     for i in range(len(reg_conds)):
         print(f'Using regulariztaion condition number of {reg_conds[i][0]:.1e} for {reg_conds[i][1]} iterations.')
         control_matrix = reg_fun(response_matrix, rcond=reg_conds[i][0], **reg_kwargs)
-          
         
-        all_images, all_dm1_commands, all_dm2_commands = run(sysi, 
-                                                  control_matrix,
-                                                  probe_modes, 
-                                                  probe_amplitude, 
-                                                  calibration_modes,
-                                                  control_mask, 
-                                                  num_iterations=reg_conds[i][1], 
-                                                 starting_iteration=starting_iteration,
-                                                  loop_gain=loop_gain, 
-                                                  leakage=leakage,
-                                                  plot_all=plot_all,
-                                                  plot_radial_contrast=plot_radial_contrast,
-                                                 old_images=all_images,
-                                                 old_dm1_commands=all_dm1_commands,
-                                                 old_dm2_commands=all_dm2_commands,
-                                                 )
+        all_images, all_dm1_commands, all_dm2_commands = run(sysi,
+                                                              control_matrix,
+                                                              probe_modes, 
+                                                              probe_amplitude, 
+                                                              calibration_modes,
+                                                              control_mask, 
+                                                              num_iterations=reg_conds[i][1],
+                                                              loop_gain=loop_gain, 
+                                                              leakage=leakage,
+                                                              plot_all=plot_all,
+                                                              plot_radial_contrast=plot_radial_contrast,
+                                                             old_images=all_images,
+                                                             old_dm1_commands=all_dm1_commands,
+                                                             old_dm2_commands=all_dm2_commands,
+                                                             )
         starting_iteration += reg_conds[i][1]
         
 #         all_images = xp.concatenate([all_images, images], axis=0)

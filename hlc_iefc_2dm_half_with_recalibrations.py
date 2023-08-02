@@ -41,7 +41,7 @@ dm2_flat = 2*fits.getdata(cgi_phasec_poppy.data_dir/'dm-acts'/'flatmaps'/'hlc_fl
 
 imshow2(dm1_flat/2, dm2_flat/2, 'DM1 Initial State', 'DM2 Initial State', cmap1='viridis', cmap2='viridis')
 
-reload(cgi_phasec_poppy)
+
 mode = cgi_phasec_poppy.cgi.CGI(cgi_mode='hlc', npsf=60,
                                 dm1_ref=dm1_flat,
                                 dm2_ref=dm2_flat,
@@ -61,65 +61,25 @@ imshow1(ref_im, 'HLC Initial Coronagraphic Image\nfor iEFC',
 
 
 reload(utils)
-xfp = (xp.linspace(-mode.npsf/2, mode.npsf/2-1, mode.npsf) + 1/2)*mode.psf_pixelscale_lamD
-fpx,fpy = xp.meshgrid(xfp,xfp)
-  
-iwa = 3
-owa = 9
-roi_params = {
-        'inner_radius' : iwa,
-        'outer_radius' : owa,
-        'edge' : 0.5,
-        'rotation':0,
-        'full':True,
-    }
-roi1 = utils.create_annular_focal_plane_mask(fpx, fpy, roi_params, plot=True)
-
-iwa = 2.8
-owa = 9.7
-roi_params = {
-        'inner_radius' : iwa,
-        'outer_radius' : owa,
-        'edge' : 0.5,
-        'rotation':0,
-        'full':True,
-    }
-roi2 = utils.create_annular_focal_plane_mask(fpx, fpy, roi_params, plot=True)
-
-iwa = 3.2
-owa = 6
-roi_params = {
-        'inner_radius' : iwa,
-        'outer_radius' : owa,
-        'edge' : 0.5,
-        'rotation':0,
-        'full':True,
-    }
-roi3 = utils.create_annular_focal_plane_mask(fpx, fpy, roi_params, plot=True)
+roi1 = utils.create_annular_focal_plane_mask(mode, inner_radius=3, outer_radius=9, edge=0.5, plot=True)
+roi2 = utils.create_annular_focal_plane_mask(mode, inner_radius=2.5, outer_radius=9.7, edge=0.5, plot=True)
+roi3 = utils.create_annular_focal_plane_mask(mode, inner_radius=3.2, outer_radius=6, edge=0.5, plot=True)
 
 relative_weight_1 = 0.9
-relative_weight_2 = 0.2
+relative_weight_2 = 0.4
 weight_map = roi3 + relative_weight_1*(roi1*~roi3) + relative_weight_2*(roi2*~roi1*~roi3)
 control_mask = weight_map>0
 imshow2(weight_map, control_mask*ref_im, lognorm2=True)
 mean_ni = xp.mean(ref_im[control_mask])
 print(mean_ni)
 
-
-reload(utils)
-fourier_modes, fs = utils.select_fourier_modes(mode, control_mask*(fpx>0), fourier_sampling=0.5) 
-probe_modes = utils.create_fourier_probes(fourier_modes, shift_cos=(10,10), shift_sin=(-10,-10), plot=True)
+# choose probe modes
 probe_amp = 2.5e-8
+probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.5, shift=(14,0), nprobes=2, plot=True)
 
-calib_modes = xp.zeros((mode.Nacts, mode.Nact, mode.Nact))
-count=0
-for i in range(mode.Nact):
-    for j in range(mode.Nact):
-        if mode.dm_mask[i,j]:
-            calib_modes[count, i,j] = 1
-            count+=1
-calib_modes = ensure_np_array(calib_modes[:,:].reshape(mode.Nacts, mode.Nact**2))
-calib_amp = 2.5e-9
+# choose calibration modes 
+calib_amp = 5e-9
+calib_modes = utils.create_all_poke_modes(mode.dm_mask)
 
 Ncalibs = 6
 Nitr = 5
@@ -134,7 +94,7 @@ for i in range(Ncalibs):
     utils.save_fits(response_dir/f'hlc_iefc_2dm_response_matrix_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(response_matrix))
     utils.save_fits(response_dir/f'hlc_iefc_2dm_response_cube_{i+1}_{Ncalibs}_{today}.fits', ensure_np_array(response_cube))
     
-    reg_conds = [(1e-3,2), (1e-1,3)]
+    reg_conds = [(1e-2,3), (1e-1,2)]
     reg_fun = utils.WeightedLeastSquares
     reg_kwargs = {
         'weight_map':weight_map,

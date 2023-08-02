@@ -3,6 +3,7 @@ import imshows
 
 import numpy as np
 import scipy
+from scipy.linalg import hadamard
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm
@@ -53,7 +54,7 @@ def map_acts_to_dm(actuators, dm_mask, Nact=48):
     return command
 
 # Create control matrix
-def WeightedLeastSquares(A, weight_map, nprobes=2, rcond=1e-15):
+def WeightedLeastSquares(A, weight_map, nprobes=2, rcond=1e-1):
     control_mask = weight_map > 0
     w = weight_map[control_mask]
     for i in range(nprobes-1):
@@ -91,14 +92,20 @@ def create_circ_mask(h, w, center=None, radius=None):
     return mask
 
 # Creating focal plane masks
-def create_annular_focal_plane_mask(x, y, params, plot=False):
+def create_annular_focal_plane_mask(sysi, 
+                                    inner_radius, outer_radius, 
+                                    edge=None,
+                                    shift=(0,0), 
+                                    rotation=0,
+                                    plot=False):
+    x = (xp.linspace(-sysi.npsf/2, sysi.npsf/2-1, sysi.npsf) + 1/2)*sysi.psf_pixelscale_lamD
+    x,y = xp.meshgrid(x,x)
     r = xp.hypot(x, y)
-    mask = (r < params['outer_radius']) * (r > params['inner_radius'])
-    if 'edge' in params: mask *= (x > params['edge'])
+    mask = (r < outer_radius) * (r > inner_radius)
+    if edge is not None: mask *= (x > edge)
     
-    if 'rotation' in params: mask = _scipy.ndimage.rotate(mask, params['rotation'], reshape=False, order=0)
-    if 'xshift' in params: mask = _scipy.ndimage.shift(mask, (0, params['xshift']), order=0)
-    if 'yshift' in params: mask = _scipy.ndimage.shift(mask, (params['yshift'], 0), order=0)
+    mask = _scipy.ndimage.rotate(mask, rotation, reshape=False, order=0)
+    mask = _scipy.ndimage.shift(mask, (shift[1], shift[0]), order=0)
     
     if plot:
         imshows.imshow1(mask)
@@ -106,7 +113,9 @@ def create_annular_focal_plane_mask(x, y, params, plot=False):
     
     return mask
 
-def create_box_focal_plane_mask(x, y, params):
+def create_box_focal_plane_mask(sysi, x0, y0, width, height):
+    x = (xp.linspace(-sysi.npsf/2, sysi.npsf/2-1, sysi.npsf) + 1/2)*sysi.psf_pixelscale_lamD
+    x,y = xp.meshgrid(x,x)
     x0, y0, width, height = (params['x0'], params['y0'], params['w'], params['h'])
     mask = ( abs(x - x0) < width/2 ) * ( abs(y - y0) < height/2 )
     return mask > 0
@@ -191,9 +200,7 @@ def get_random_probes(rms, alpha, dm_mask, fmin=1, fmax=17, nprobe=3):
         
     return np.asarray(allprobes)
 
-
-from scipy.linalg import hadamard
-def get_hadamard_modes(dm_mask): 
+def create_hadamard_modes(dm_mask): 
     Nacts = dm_mask.sum().astype(int)
     np2 = 2**int(np.ceil(np.log2(Nacts)))
     hmodes = hadamard(np2)
@@ -246,23 +253,30 @@ def select_fourier_modes(sysi, control_mask, fourier_sampling=0.75, use='both'):
         
     return np.array(modes), sampled_fs
 
-def create_fourier_probes(fourier_modes, Nact=48, shift_cos=(0,0), shift_sin=(0,0), plot=False): 
-    # make 2 probe modes from the sum of the cos and sin fourier modes
-#     fourier_modes = select_fourier_modes()
+def create_fourier_probes(sysi, control_mask, Nact=48, fourier_sampling=0.25, shift=(0,0), nprobes=2, plot=False): 
+#     make 2 probe modes from the sum of the cos and sin fourier modes
+    xfp = (xp.linspace(-sysi.npsf/2, sysi.npsf/2-1, sysi.npsf) + 1/2) * sysi.psf_pixelscale_lamD
+    fpx, fpy = xp.meshgrid(xfp,xfp)
+    
+    fourier_modes, fs = select_fourier_modes(sysi, control_mask*(fpx>0), fourier_sampling=fourier_sampling, use='both')
     nfs = fourier_modes.shape[0]//2
-    probe1 = fourier_modes[:nfs].sum(axis=0).reshape(Nact,Nact)
-    probe2 = fourier_modes[nfs:].sum(axis=0).reshape(Nact,Nact)
+    
+    probes = np.zeros((nprobes, sysi.Nact, sysi.Nact))
+    sum_cos = fourier_modes[:nfs].sum(axis=0).reshape(Nact,Nact)
+    sum_sin = fourier_modes[nfs:].sum(axis=0).reshape(Nact,Nact)
+    
+    # nprobes=2 will give one probe that is purely the sum of cos and another that is the sum of sin
+    cos_weights = np.linspace(1,0,nprobes)
+    sin_weights = np.linspace(0,1,nprobes)
+    for i in range(nprobes):
+        probe = cos_weights[i]*sum_cos + sin_weights[i]*sum_sin
+        probe = scipy.ndimage.shift(probe, (shift[1], shift[0]))
+        probes[i] = probe/np.max(probe)
 
-    probe1 /= probe1.max()
-    probe2 /= probe2.max()
+        if plot: 
+            imshows.imshow1(probes[i])
 
-    probe1 = scipy.ndimage.shift(probe1, shift_cos)
-    probe2 = scipy.ndimage.shift(probe2, shift_sin)
-    if plot: 
-        imshows.imshow2(probe1, probe2)
-    probe_modes = np.array([probe1,probe2])
-
-    return probe_modes
+    return probes
 
 def fourier_mode(lambdaD_yx, rms=1, acts_per_D_yx=(34,34), Nact=34, phase=0):
     '''
@@ -281,9 +295,7 @@ def fourier_mode(lambdaD_yx, rms=1, acts_per_D_yx=(34,34), Nact=34, phase=0):
     
     return prefactor * np.cos(arg + phase)
 
-def create_probe_poke_modes(Nact, 
-                            poke_indices,
-                            plot=False):
+def create_poke_probes(poke_indices, Nact=48, plot=False):
     Nprobes = len(poke_indices)
     probe_modes = np.zeros((Nprobes, Nact, Nact))
     for i in range(Nprobes):
