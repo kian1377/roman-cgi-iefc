@@ -7,3 +7,5 @@ __pycache__/*
 figures/
 
 *.out
+
+core.*

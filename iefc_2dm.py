@@ -9,8 +9,8 @@ import copy
 from IPython.display import display, clear_output
 
 from pathlib import Path
-# iefc_data_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
-iefc_data_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
+iefc_data_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
+# iefc_data_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
 
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
 def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, pca_modes=None, display=False):
