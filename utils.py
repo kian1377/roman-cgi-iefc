@@ -254,7 +254,6 @@ def select_fourier_modes(sysi, control_mask, fourier_sampling=0.75, use='both'):
     return np.array(modes), sampled_fs
 
 def create_fourier_probes(sysi, control_mask, Nact=48, fourier_sampling=0.25, shift=(0,0), nprobes=2, plot=False): 
-#     make 2 probe modes from the sum of the cos and sin fourier modes
     xfp = (xp.linspace(-sysi.npsf/2, sysi.npsf/2-1, sysi.npsf) + 1/2) * sysi.psf_pixelscale_lamD
     fpx, fpy = xp.meshgrid(xfp,xfp)
     
@@ -268,9 +267,14 @@ def create_fourier_probes(sysi, control_mask, Nact=48, fourier_sampling=0.25, sh
     # nprobes=2 will give one probe that is purely the sum of cos and another that is the sum of sin
     cos_weights = np.linspace(1,0,nprobes)
     sin_weights = np.linspace(0,1,nprobes)
+    
+    if not isinstance(shift, list):
+        shifts = [shift]*nprobes
+    else:
+        shifts = shift
     for i in range(nprobes):
         probe = cos_weights[i]*sum_cos + sin_weights[i]*sum_sin
-        probe = scipy.ndimage.shift(probe, (shift[1], shift[0]))
+        probe = scipy.ndimage.shift(probe, (shifts[i][1], shifts[i][0]))
         probes[i] = probe/np.max(probe)
 
         if plot: 

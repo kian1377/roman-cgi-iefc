@@ -9,8 +9,8 @@ import copy
 from IPython.display import display, clear_output
 
 from pathlib import Path
-iefc_data_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
-# iefc_data_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
+# iefc_data_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
+iefc_data_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
 
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
 def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, pca_modes=None, display=False):
@@ -173,8 +173,13 @@ def run(sysi,
         command = (1.0-leakage)*command + loop_gain*delta_coefficients
         
         # Reconstruct the full phase from the Fourier modes
-        dm1_command = -calibration_modes.T.dot(utils.ensure_np_array(command[:Nc])).reshape(sysi.Nact,sysi.Nact)
-        dm2_command = -calibration_modes.T.dot(utils.ensure_np_array(command[Nc:])).reshape(sysi.Nact,sysi.Nact)
+#         dm1_command = -calibration_modes.T.dot(utils.ensure_np_array(command[:Nc])).reshape(sysi.Nact,sysi.Nact)
+#         dm2_command = -calibration_modes.T.dot(utils.ensure_np_array(command[Nc:])).reshape(sysi.Nact,sysi.Nact)
+        print(command.shape)
+        act_commands = -calibration_modes.T.dot(utils.ensure_np_array(command))
+        print(act_commands.shape)
+        dm1_command = act_commands[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
+        dm2_command = act_commands[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
         
         # Set the current DM state
         sysi.set_dm1(dm1_ref + dm1_command)

@@ -88,8 +88,8 @@ reload(cgi_phasec_poppy.parallelized_cgi)
 mode = cgi_phasec_poppy.parallelized_cgi.ParallelizedCGI(actors=actors)
 
 mode.use_noise = True
-mode.exp_time = 10*u.s
-mode.gain = 10
+mode.exp_time = 2*u.s
+mode.gain = 100
 mode.dark_current_rate = 0.05*u.electron/u.pix/u.hour
 # mode.dark_current_rate = 0.0*u.electron/u.pix/u.hour
 mode.read_noise = 120*u.electron/u.pix
@@ -107,8 +107,8 @@ mode.Imax_ref = max_ref
 mode.exp_time_ref = mode.exp_time
 mode.gain_ref = mode.gain
 
-mode.exp_time = 10*u.s
-mode.gain = 10
+mode.exp_time = 2*u.s
+mode.gain = 100
 
 ref_im = mode.snap()
 imshow1(ref_im, pxscl=mode.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True)
@@ -130,11 +130,16 @@ print(mean_ni)
 
 # Create probe modes
 probe_amp = 2.5e-8
-probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.25, shift=(-10,8), nprobes=3, plot=True)
+# probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.25, shift=(-10,8), nprobes=3, plot=True)
+probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2, shift=[(-12,6), (12,6), (0,-12)], nprobes=3, plot=True)
+
+# probe_amp = 2.5e-8
+# probe_modes = utils.create_poke_probes([(mode.Nact//5+2, mode.Nact//3), (mode.Nact//5+1, mode.Nact//3)], plot=True)
 
 # Create calibration modes
 calib_amp = 5e-9
-calib_modes = utils.create_all_poke_modes(mode.dm_mask)
+# calib_modes = utils.create_all_poke_modes(mode.dm_mask)
+calib_modes = utils.create_hadamard_modes(mode.dm_mask)
 
 response_matrix, response_cube = iefc_2dm.calibrate(mode, 
                                                     control_mask,
@@ -142,8 +147,8 @@ response_matrix, response_cube = iefc_2dm.calibrate(mode,
                                                     calib_amp, calib_modes, 
                                                     return_all=True)
 
-utils.save_fits(response_dir/f'bbspc_iefc_2dm_poke_response_matrix_{today}.fits', ensure_np_array(response_matrix))
-utils.save_fits(response_dir/f'bbspc_iefc_2dm_poke_response_cube_{today}.fits', ensure_np_array(response_cube))
+utils.save_fits(response_dir/f'bbspc_iefc_2dm_had_response_matrix_{today}.fits', ensure_np_array(response_matrix))
+utils.save_fits(response_dir/f'bbspc_iefc_2dm_had_response_cube_{today}.fits', ensure_np_array(response_cube))
 
 
 
