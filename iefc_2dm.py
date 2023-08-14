@@ -15,13 +15,22 @@ iefc_data_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
 def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, pca_modes=None, display=False):
 
-    if probe_cube.shape[0]==2:
-        differential_operator = xp.array([[-1,1,0,0],
-                                          [0,0,-1,1]]) / (2 * probe_amplitude)
-    elif probe_cube.shape[0]==3:
-        differential_operator = xp.array([[-1,1,0,0,0,0],
-                                          [0,0,-1,1,0,0],
-                                          [0,0,0,0,-1,1]]) / (2 * probe_amplitude)
+#     if probe_cube.shape[0]==2:
+#         differential_operator = xp.array([[-1,1,0,0],
+#                                           [0,0,-1,1]]) / (2 * probe_amplitude)
+#     elif probe_cube.shape[0]==3:
+#         differential_operator = xp.array([[-1,1,0,0,0,0],
+#                                           [0,0,-1,1,0,0],
+#                                           [0,0,0,0,-1,1]]) / (2 * probe_amplitude)
+    
+    differential_operator = []
+    for i in range(len(probe_cube)):
+        vec = [0]*2*len(probe_cube)
+        vec[2*i] = -1
+        vec[2*i+1] = 1
+        differential_operator.append(vec)
+    differential_operator = xp.array(differential_operator) / (2 * probe_amplitude)
+#     print(differential_operator)
     
     amps = np.linspace(-probe_amplitude, probe_amplitude, 2)
     images = []
@@ -222,10 +231,10 @@ def run(sysi,
     if old_images is None:
         starting_iteration = 0
     else:
-        starting_iteration = len(old_images) - 1
+        starting_iteration = len(old_images)
         
     for i in range(num_iterations):
-        print("\tClosed-loop iteration {:d} / {:d}".format(i+starting_iteration+1, num_iterations+starting_iteration))
+        print(f"\tClosed-loop iteration {i+starting_iteration} / {num_iterations+starting_iteration}")
         
         delta_coefficients = single_iteration(sysi, probe_modes, probe_amplitude, control_matrix, control_mask)
         command = (1.0-leakage)*command + loop_gain*delta_coefficients
@@ -233,9 +242,9 @@ def run(sysi,
         # Reconstruct the full phase from the Fourier modes
 #         dm1_command = -calibration_modes.T.dot(utils.ensure_np_array(command[:Nc])).reshape(sysi.Nact,sysi.Nact)
 #         dm2_command = -calibration_modes.T.dot(utils.ensure_np_array(command[Nc:])).reshape(sysi.Nact,sysi.Nact)
-        print(command.shape)
+#         print(command.shape)
         act_commands = -calibration_modes.T.dot(utils.ensure_np_array(command))
-        print(act_commands.shape)
+#         print(act_commands.shape)
         dm1_command = act_commands[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
         dm2_command = act_commands[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
         

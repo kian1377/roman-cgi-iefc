@@ -193,7 +193,6 @@ def create_fourier_modes(sysi, control_mask, fourier_sampling=0.75, use='both', 
     xfp = (np.linspace(-sysi.npsf/2, sysi.npsf/2-1, sysi.npsf) + 1/2) * sysi.psf_pixelscale_lamD
     fpx, fpy = np.meshgrid(xfp,xfp)
     
-    
     intp = scipy.interpolate.interp2d(xfp, xfp, ensure_np_array(control_mask)) # setup the interpolation function
     
     xpp = np.linspace(-sysi.Nact/2, sysi.Nact/2-1, sysi.Nact) + 1/2
