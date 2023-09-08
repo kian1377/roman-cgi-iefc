@@ -161,13 +161,37 @@ def create_random_probes(rms, alpha, dm_mask, fmin=1, fmax=17, nprobe=3):
         
     return np.asarray(allprobes)
 
-def create_2dm_mode_matrix(calib_modes):
+def create_2dm_mode_matrix(dm_modes_1, dm_modes_2=None):
     
-    calib_modes_dm1 = np.concatenate([calib_modes, np.zeros_like(calib_modes)])
-    calib_modes_dm2 = np.concatenate([np.zeros_like(calib_modes), calib_modes])
+    dm_modes_2 = dm_modes_1 if dm_modes_2 is None else dm_modes_2 # assumes same modes on each DM
+    
+    calib_modes_dm1 = np.concatenate([dm_modes_1, np.zeros_like(dm_modes_2)])
+    calib_modes_dm2 = np.concatenate([np.zeros_like(dm_modes_1), dm_modes_2])
+#     print(calib_modes_dm1.shape, calib_modes_dm2.shape)
     Mcalib = np.concatenate([calib_modes_dm1, calib_modes_dm2], axis=1)
     
     return Mcalib
+
+
+def fourier_filter_command(command, iwa, owa):
+    
+    oversamp = 4
+    N = int(oversamp*command.shape[0])
+    
+    command_padded = pad_or_crop(command, N)
+    
+    command_ft = np.fft.ifftshift(np.fft.fft2(np.fft.fftshift( command_padded )))
+    
+    x = (np.linspace(-N//2, N//2-1, N) + 1/2) * 1/oversamp
+    x,y = np.meshgrid(x,x)
+    r = np.sqrt(x**2 + y**2)
+    mask = (r>iwa) * (r<owa)
+    imshows.imshow1(mask)
+    command_ft *= mask
+    
+    filtered_command = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift( command_ft )))
+    
+    return pad_or_crop(filtered_command, command.shape[0])
 
 def create_hadamard_modes(dm_mask, ndms=1): 
     Nacts = dm_mask.sum().astype(int)
