@@ -1,3 +1,6 @@
+import sys
+sys.path.append("..")
+
 import numpy as np
 import scipy
 
@@ -16,7 +19,7 @@ today = int(datetime.today().strftime('%Y%m%d'))
 from importlib import reload
 import time
 
-import logging, sys
+import logging
 poppy_log = logging.getLogger('poppy')
 poppy_log.setLevel('DEBUG')
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -31,7 +34,7 @@ import cgi_phasec_poppy
 import ray
 if not ray.is_initialized():
     ray.init(log_to_driver=False)
-
+    
 from math_module import xp, ensure_np_array
 import iefc_2dm 
 import utils
@@ -40,27 +43,34 @@ from imshows import *
 data_dir = iefc_2dm.iefc_data_dir
 response_dir = data_dir/'response-data'
 
-# Make the spectrum and create the actors and broadband mode
 wavelength_c = 825e-9*u.m
 
-nlam = 5
-bandwidth = 0.1
+nlam = 3
+bandwidth = 2.9/100
 minlam = wavelength_c * (1 - bandwidth/2)
 maxlam = wavelength_c * (1 + bandwidth/2)
 wavelengths = np.linspace( minlam, maxlam, nlam )
 
 from astropy.constants import h, c, k_B, R_sun
 
-uma47 = cgi_phasec_poppy.source_flux.SOURCE(wavelengths=wavelengths,
-                                            temp=5887*u.K,
-                                            distance=14.06*u.parsec,
-                                            diameter=2*1.172*R_sun)
+zpup = cgi_phasec_poppy.source_flux.SOURCE(wavelengths=wavelengths,
+                                            temp=40000*u.K,
+                                            distance=300*u.parsec,
+                                            diameter=2*14*R_sun,
+                                            name='$\zeta$ Pup', 
+                                            lambdas=np.linspace(10, 1000, 19801)*u.nm,
+                                           )
 
-uma47.plot_spectrum()
+zpup.plot_spectrum()
+# zpup.plot_spectrum_ph()
 
-source_fluxes = uma47.calc_fluxes()
+source_fluxes = zpup.calc_fluxes()
 print(source_fluxes)
+total_flux = np.sum(source_fluxes)
+print(total_flux)
 
+reload(cgi_phasec_poppy.cgi)
+reload(cgi_phasec_poppy.parallelized_cgi)
 
 rayCGI = ray.remote(cgi_phasec_poppy.cgi.CGI) # make a ray actor class from the original CGI class  
 
@@ -74,103 +84,75 @@ kwargs = {
 
 actors = []
 for i in range(nlam):
-    actors.append(rayCGI.options(num_cpus=2, num_gpus=1/nlam).remote(**kwargs))
+    actors.append(rayCGI.options(num_cpus=2, num_gpus=1/8).remote(**kwargs))
     actors[i].setattr.remote('wavelength', wavelengths[i])
     actors[i].setattr.remote('source_flux', source_fluxes[i])
     
+    
+reload(cgi_phasec_poppy.parallelized_cgi)
 mode = cgi_phasec_poppy.parallelized_cgi.ParallelizedCGI(actors=actors)
+
+mode.use_noise = True
+mode.exp_time = 2*u.s
+mode.gain = 100
+mode.dark_current_rate = 0.05*u.electron/u.pix/u.hour
+# mode.dark_current_rate = 0.0*u.electron/u.pix/u.hour
+mode.read_noise = 120*u.electron/u.pix
+# mode.read_noise = 0*u.electron/u.pix
 
 mode.set_actor_attr('use_fpm',False)
 ref_unocc_im = mode.snap()
-imshow1(ref_unocc_im, pxscl=mode.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True, 
-        display_fig=False, 
-        save_fig='figures/bbspc_wfov_unocculted.png')
+imshow1(ref_unocc_im, pxscl=mode.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True)
 
-max_ref = ref_unocc_im.get().max()
-display(max_ref)
+max_ref = xp.max(ref_unocc_im)
+print(max_ref)
 
 mode.set_actor_attr('use_fpm',True)
-mode.Iref = max_ref
+mode.Imax_ref = max_ref
+mode.exp_time_ref = mode.exp_time
+mode.gain_ref = mode.gain
+
+mode.exp_time = 2*u.s
+mode.gain = 100
+
 ref_im = mode.snap()
-imshow1(ref_im, pxscl=mode.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True,
-        display_fig=False, 
-        save_fig='figures/bbspc_wfov_occulted_initial_state.png')
-    
-# create the weight map
-xfp = (xp.linspace(-mode.npsf/2, mode.npsf/2-1, mode.npsf) + 1/2)*mode.psf_pixelscale_lamD
-fpx,fpy = xp.meshgrid(xfp,xfp)
-  
-iwa = 6
-owa = 20
-roi_params = {
-        'inner_radius' : iwa,
-        'outer_radius' : owa,
-#         'edge' : 2,
-        'rotation':0,
-        'full':True,
-    }
-roi1 = utils.create_annular_focal_plane_mask(fpx, fpy, roi_params, plot=True)
+imshow1(ref_im, pxscl=mode.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True)
 
-iwa = 5.4
-owa = 20.6
-roi_params = {
-        'inner_radius' : iwa,
-        'outer_radius' : owa,
-#         'edge' : 2,
-        'rotation':0,
-        'full':True,
-    }
-roi2 = utils.create_annular_focal_plane_mask(fpx, fpy, roi_params, plot=True)
 
-iwa = 6
-owa = 11
-roi_params = {
-        'inner_radius' : iwa,
-        'outer_radius' : owa,
-#         'edge' : 2,
-        'rotation':0,
-        'full':True,
-    }
-roi3 = utils.create_annular_focal_plane_mask(fpx, fpy, roi_params, plot=True)
+reload(utils)
+roi1 = utils.create_annular_focal_plane_mask(mode, inner_radius=6, outer_radius=20, edge=None, plot=True)
+roi2 = utils.create_annular_focal_plane_mask(mode, inner_radius=5.4, outer_radius=20.6, edge=None, plot=True)
+roi3 = utils.create_annular_focal_plane_mask(mode, inner_radius=6, outer_radius=11, edge=None, plot=True)
 
 relative_weight_1 = 0.9
-relative_weight_2 = 0.2
+relative_weight_2 = 0.4
 weight_map = roi3 + relative_weight_1*(roi1*~roi3) + relative_weight_2*(roi2*~roi1*~roi3)
 control_mask = weight_map>0
-imshow1(weight_map, display_fig=False, save_fig='bbspc_wfov_weight_map.png')
-utils.save_fits(response_dir/f'bbspc_wfov_iefc_2dm_weight_map_bw0.1_{today}.fits', ensure_np_array(weight_map))
+imshow2(weight_map, control_mask*ref_im, lognorm2=True)
+mean_ni = xp.mean(ref_im[control_mask])
+print(mean_ni)
 
-# Create the poke calibration modes
-calib_amp = 2.5e-9
 
-calib_modes = xp.zeros((mode.Nacts, mode.Nact, mode.Nact))
-count=0
-for i in range(mode.Nact):
-    for j in range(mode.Nact):
-        if mode.dm_mask[i,j]:
-            calib_modes[count, i,j] = 1
-            count+=1
-            
-calib_modes = calib_modes[:,:].reshape(mode.Nacts, mode.Nact**2)
-
-# create the probe modes, also using pokes
+reload(utils)
 probe_amp = 2.5e-8
+probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2, shift=[(-12,6), (12,6), (0,-12)], nprobes=3, plot=True)
 
-# poke_probes = wfsc.utils.create_probe_poke_modes(Nact, [(Nact//2, Nact//5), (Nact//2, Nact//5+2)], plot=True)
-probe_modes = utils.create_probe_poke_modes(mode.Nact,  
-                                            [(mode.Nact//5+2, mode.Nact//3), (mode.Nact//5+1, mode.Nact//3)])
 
-# Calculate response matrix
+calib_amp = 10e-9
+calib_modes = utils.create_all_poke_modes(mode.dm_mask, ndms=2)
+print(calib_modes.shape)
+
+
 response_matrix, response_cube = iefc_2dm.calibrate(mode, 
-                                                         control_mask,
-                                                         probe_amp, probe_modes, 
-                                                         calib_amp, ensure_np_array(calib_modes), 
-                                                         return_all=True)
+                                                    control_mask,
+                                                    probe_amp, probe_modes, 
+                                                    calib_amp, calib_modes, 
+                                                    return_all=True)
 
 
-utils.save_fits(response_dir/f'bbspc_wfov_iefc_2dm_poke_response_matrix_bw0.1_{today}.fits', 
+utils.save_fits(response_dir/f'bbspc_wfov_iefc_2dm_poke_response_matrix_{today}.fits', 
                 ensure_np_array(response_matrix))
-utils.save_fits(response_dir/f'bbspc_wfov_iefc_2dm_poke_response_cube_bw0.1_{today}.fits',
+utils.save_fits(response_dir/f'bbspc_wfov_iefc_2dm_poke_response_cube_{today}.fits',
                 ensure_np_array(response_cube))
 
 

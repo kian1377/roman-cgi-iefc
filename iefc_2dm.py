@@ -13,7 +13,7 @@ from pathlib import Path
 iefc_data_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
 
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
-def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, pca_modes=None, display=False):
+def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, pca_modes=None, plot=False):
 
 #     if probe_cube.shape[0]==2:
 #         differential_operator = xp.array([[-1,1,0,0],
@@ -53,7 +53,13 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
     
     if pca_modes is not None:
         differential_images = differential_images - (pca_modes.T.dot( pca_modes.dot(differential_images.T) )).T
-        
+    
+    if plot:
+        for i, diff_im in enumerate(differential_images):
+            imshows.imshow2(probe_cube[i], diff_im.reshape(sysi.npsf, sysi.npsf), 
+                            f'Probe Command {i+1}', 'Difference Image', pxscl2=sysi.psf_pixelscale_lamD,
+                            cmap1='viridis')
+    
     if return_all:
         return differential_images, images
     else:
