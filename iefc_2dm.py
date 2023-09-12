@@ -136,7 +136,8 @@ def calibrate(sysi,
               control_mask, 
               probe_amplitude, probe_modes, 
               calibration_amplitude, calibration_modes, 
-              return_all=False):
+              return_all=False,
+              plot_responses=True):
     print('Calibrating iEFC...')
     
     response_matrix = []
@@ -178,17 +179,28 @@ def calibrate(sysi,
         if return_all: 
             response_cube.append(response)
             
-    response_matrix = xp.array(response_matrix) # this is the response matrix to be inverted
+    response_matrix = xp.array(response_matrix).T # this is the response matrix to be inverted
     
     if return_all:
         response_cube = xp.array(response_cube)
     print()
     print('Calibration complete.')
     
+    if plot_responses:
+        dm_rms = xp.sqrt(xp.mean((response_matrix.dot(xp.array(calibration_modes)))**2, axis=0))
+        dm1_rms = dm_rms[:sysi.Nact**2].reshape(sysi.Nact, sysi.Nact)
+        dm2_rms = dm_rms[sysi.Nact**2:].reshape(sysi.Nact, sysi.Nact)
+        imshows.imshow2(dm1_rms, dm2_rms, 
+                        'DM1 RMS Actuator Responses', 'DM2 RMS Actuator Responses')
+        if return_all:
+            fp_rms = xp.sqrt(xp.mean(abs(response_cube)**2, axis=(0,1))).reshape(sysi.npsf,sysi.npsf)
+            imshows.imshow1(fp_rms, 'Focal Plane Pixels RMS Response', lognorm=True)
+            
+    
     if return_all:
-        return response_matrix.T, xp.array(response_cube)
+        return response_matrix, xp.array(response_cube)
     else:
-        return response_matrix.T
+        return response_matrix
     
 
 def single_iteration(sysi, probe_cube, probe_amplitude, control_matrix, control_mask):
