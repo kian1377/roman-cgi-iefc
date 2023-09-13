@@ -172,6 +172,19 @@ def create_2dm_mode_matrix(dm_modes_1, dm_modes_2=None):
     
     return Mcalib
 
+def sort_modes_by_rms(calib_modes, response_matrix):
+    
+    rms_mode_responses = xp.sqrt(xp.mean((response_matrix)**2, axis=0))
+    sorted_inds = ensure_np_array(xp.argsort(rms_mode_responses))
+    
+    sorted_modes = np.empty_like(calib_modes)
+    sorted_modes[sorted_inds] = calib_modes
+    
+    sorted_response_matrix = xp.empty_like(response_matrix)
+    sorted_response_matrix = response_matrix[:, sorted_inds]
+    
+    return sorted_modes, sorted_response_matrix
+
 
 def fourier_filter_command(command, iwa, owa):
     
