@@ -300,7 +300,7 @@ def create_fourier_probes(sysi, control_mask, Nact=48, fourier_sampling=0.25, sh
 
     return probes
 
-def fourier_mode(lambdaD_yx, rms=1, acts_per_D_yx=(34,34), Nact=34, phase=0):
+def fourier_mode(lambdaD_yx, rms=1, acts_per_D_yx=(48,48), Nact=48, phase=0):
     '''
     Allow linear combinations of sin/cos to rotate through the complex space
     * phase = 0 -> pure cos

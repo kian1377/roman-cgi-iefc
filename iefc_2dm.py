@@ -223,12 +223,14 @@ def run(sysi,
         num_iterations=10, 
         loop_gain=0.5, 
         leakage=0.0,
+        use_fourier_filter=False,
         plot_current=True,
         plot_all=False,
         plot_radial_contrast=True,
         old_images=None,
         old_dm1_commands=None,
-        old_dm2_commands=None):
+        old_dm2_commands=None,
+       ):
     
     print('Running iEFC...')
     start = time.time()
@@ -265,6 +267,10 @@ def run(sysi,
 #         print(act_commands.shape)
         dm1_command = act_commands[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
         dm2_command = act_commands[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
+        
+        if use_fourier_filter:
+            dm1_command = utils.fourier_filter_command(dm1_command, 5, 21)
+            dm2_command = utils.fourier_filter_command(dm2_command, 5, 21)
         
         # Set the current DM state
         sysi.set_dm1(dm1_ref + dm1_command)

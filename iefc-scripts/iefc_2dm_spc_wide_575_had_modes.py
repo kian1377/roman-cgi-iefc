@@ -75,8 +75,9 @@ print(mean_ni)
 
 reload(utils)
 probe_amp = 2e-8
-probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2, shift=[(-12,6), (12,6), (0,-12)], nprobes=2, plot=True)
+probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2, shift=[(-12,6), (12,6), (0,-12)], nprobes=3, plot=True)
 
+# probe_modes = probe_modes[:2]
 
 calib_modes = utils.create_hadamard_modes(mode.dm_mask, ndms=2)
 Nmodes = calib_modes.shape[0]
@@ -84,7 +85,6 @@ Nhad = calib_modes.shape[0]//2
 print(calib_modes.shape)
 i = 8
 imshow2(calib_modes[i,:mode.Nact**2].reshape(mode.Nact,mode.Nact), calib_modes[i+Nhad,mode.Nact**2:].reshape(mode.Nact,mode.Nact))
-
 
 
 reload(iefc_2dm)
