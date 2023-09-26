@@ -79,12 +79,12 @@ probe_modes = utils.create_poke_probes([(10,34), (38,34), (24,10)], plot=True)
 imshow3(probe_modes[0], probe_modes[1], probe_modes[2], save_fig='probes.png')
 utils.save_fits(response_dir/f'spc_wide_825_poke_probes_{today}.fits', probe_modes)
 
-calib_modes = utils.create_all_poke_modes(mode.dm_mask, ndms=2)
+calib_modes = utils.create_hadamard_modes(mode.dm_mask, ndms=2)
 Nmodes = calib_modes.shape[0]
+Nhad = calib_modes.shape[0]//2
 print(calib_modes.shape)
 i = 8
-imshow2(calib_modes[i,:mode.Nact**2].reshape(mode.Nact,mode.Nact), calib_modes[i+mode.Nacts,mode.Nact**2:].reshape(mode.Nact,mode.Nact))
-
+imshow2(calib_modes[i,:mode.Nact**2].reshape(mode.Nact,mode.Nact), calib_modes[i+Nhad,mode.Nact**2:].reshape(mode.Nact,mode.Nact))
 
 reload(iefc_2dm)
 
@@ -99,8 +99,8 @@ response_matrix, response_cube = iefc_2dm.calibrate(mode,
                                                    )
 
 
-utils.save_fits(response_dir/f'spc_wide_825_poke_modes_response_matrix_{today}.fits', response_matrix)
-utils.save_fits(response_dir/f'spc_wide_825_poke_modes_response_cube_{today}.fits', response_cube)
+utils.save_fits(response_dir/f'spc_wide_825_had_modes_response_matrix_{today}.fits', response_matrix)
+utils.save_fits(response_dir/f'spc_wide_825_had_modes_response_cube_{today}.fits', response_cube)
 
 
 
