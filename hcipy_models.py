@@ -31,6 +31,7 @@ class SVC(): # scalar vortex coronagraph
                  pupil_diam=10*u.mm,
                  fnum=20,
                  dm1_dm2=200e-3*u.m,
+                 ptv=40*u.nm,
                  aberration_distance=10e-3*u.m,
                  influence_functions=None,
                  use_fpm=True,
@@ -81,7 +82,7 @@ class SVC(): # scalar vortex coronagraph
         
         
         # make the aberrations of the system (make sure to remove tip-tilt)
-        aberration_ptv = 40e-9
+        aberration_ptv = ptv.to_value(u.m)
         tip_tilt = hci.make_zernike_basis(3, self.pupil_diam.to_value(u.m), self.pupil_grid, starting_mode=2)
         wfe = hci.SurfaceAberration(self.pupil_grid, aberration_ptv, 
                                     self.pupil_diam.to_value(u.m), remove_modes=tip_tilt, exponent=-3)

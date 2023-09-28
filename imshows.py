@@ -176,6 +176,7 @@ def imshow3(arr1, arr2, arr3,
             pxscl=None, pxscl1=None, pxscl2=None, pxscl3=None, 
             axlims=None, axlims1=None, axlims2=None, axlims3=None,
             xlabel=None, xlabel1=None, xlabel2=None, xlabel3=None,
+            yticks=None,
             cmap1='magma', cmap2='magma', cmap3='magma',
             lognorm=False, lognorm1=False, lognorm2=False, lognorm3=False,
             vmin1=None, vmax1=None, vmin2=None, vmax2=None, vmin3=None, vmax3=None, 
@@ -290,7 +291,11 @@ def imshow3(arr1, arr2, arr3,
     divider = make_axes_locatable(ax[2])
     cax = divider.append_axes("right", size="4%", pad=0.075)
     fig.colorbar(im, cax=cax)
-        
+
+    if yticks is not None:
+        for i in range(3):
+            ax[i].set_yticks(yticks)
+
     plt.subplots_adjust(wspace=wspace)
     if save_fig is not None: 
         plt.savefig(save_fig, bbox_inches='tight')
