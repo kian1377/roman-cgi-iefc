@@ -271,16 +271,34 @@ def create_fourier_modes(sysi, control_mask, fourier_sampling=0.75, use='both', 
     else:
         return fourier_modes
 
-def create_fourier_probes(sysi, control_mask, Nact=48, fourier_sampling=0.25, shift=(0,0), nprobes=2, plot=False): 
+def create_fourier_probes(sysi, control_mask, Nact=48, fourier_sampling=0.25, shift=(0,0), nprobes=2,
+                          use_weighting=False, plot=False): 
     xfp = (xp.linspace(-sysi.npsf/2, sysi.npsf/2-1, sysi.npsf) + 1/2) * sysi.psf_pixelscale_lamD
     fpx, fpy = xp.meshgrid(xfp,xfp)
     
-    fourier_modes = create_fourier_modes(sysi, control_mask*(fpx>0), fourier_sampling=fourier_sampling, use='both', ndms=1)
+    fourier_modes, fs = create_fourier_modes(sysi, control_mask*(fpx>0), 
+                                             fourier_sampling=fourier_sampling, 
+                                             use='both', ndms=1,
+                                             return_fs=True)
     nfs = fourier_modes.shape[0]//2
-    
+
     probes = np.zeros((nprobes, sysi.Nact, sysi.Nact))
-    sum_cos = fourier_modes[:nfs].sum(axis=0).reshape(Nact,Nact)
-    sum_sin = fourier_modes[nfs:].sum(axis=0).reshape(Nact,Nact)
+    if use_weighting:
+        fmax = np.max(np.sqrt(fs[:,0]**2 + fs[:,1]**2))
+        # print(fmax)
+        sum_cos = 0
+        sum_sin = 0
+        for i in range(nfs):
+            f = np.sqrt(fs[i][0]**2 + fs[i][1]**2)
+            weight = f/fmax
+            # print(f,weight)
+            sum_cos += weight*fourier_modes[i]
+            sum_sin += weight*fourier_modes[i+nfs]
+        sum_cos = sum_cos.reshape(Nact, Nact)
+        sum_sin = sum_sin.reshape(Nact, Nact)
+    else:
+        sum_cos = fourier_modes[:nfs].sum(axis=0).reshape(Nact,Nact)
+        sum_sin = fourier_modes[nfs:].sum(axis=0).reshape(Nact,Nact)
     
     # nprobes=2 will give one probe that is purely the sum of cos and another that is the sum of sin
     cos_weights = np.linspace(1,0,nprobes)

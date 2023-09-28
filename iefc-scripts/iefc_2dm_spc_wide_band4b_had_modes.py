@@ -145,10 +145,16 @@ mean_ni = xp.mean(ref_im[control_mask])
 print(mean_ni)
 
 reload(utils)
-probe_amp = 2.5e-8
+# probe_amp = 2.5e-8
 # probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2, shift=[(-12,6), (12,6), (0,-12)], nprobes=3, plot=True)
-probe_modes = utils.create_poke_probes([(10,34), (38,34), (24,10)], plot=True)
-# probe_modes = utils.create_poke_probes([(23,9), (25,9), (24,10)], plot=True)
+# probe_modes = utils.create_poke_probes([(10,34), (38,34), (24,10)], plot=True)
+
+probe_amp = 2.5e-8
+probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.25,
+                                          shift=[(-12,7), (12,7), (0,-14)], nprobes=3,
+                                           use_weighting=True,
+                                             plot=True)
+
 imshow3(probe_modes[0], probe_modes[1], probe_modes[2], save_fig='probes.png')
 utils.save_fits(response_dir/f'spc_wide_825_poke_probes_{today}.fits', probe_modes)
 
@@ -168,8 +174,8 @@ response_matrix, response_cube = iefc_2dm.calibrate(mode,
                                                    )
 
 
-utils.save_fits(response_dir/f'spc_wide_band4_had_modes_response_matrix_{today}.fits', response_matrix)
-utils.save_fits(response_dir/f'spc_wide_band4_had_modes_response_cube_{today}.fits', response_cube)
+utils.save_fits(response_dir/f'spc_wide_band4b_had_modes_response_matrix_{today}.fits', response_matrix)
+utils.save_fits(response_dir/f'spc_wide_band4b_had_modes_response_cube_{today}.fits', response_cube)
 
 # iefc_2dm_spc_wide_band4_had_modes.py
 
