@@ -65,73 +65,6 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
     else:
         return differential_images
     
-# def calibrate(sysi, 
-#               control_mask, 
-#               probe_amplitude, probe_modes, 
-#               calibration_amplitude, calibration_modes, 
-#               start_mode=0,
-#               return_all=False):
-#     print('Calibrating iEFC...')
-    
-#     response_matrix_1 = []
-#     response_matrix_2 = []
-#     if return_all: # be ready to store the full focal plane responses (difference images)
-#         response_cube_1 = []
-#         response_cube_2 = []
-    
-#     # Loop through all modes that you want to control
-#     start = time.time()
-#     for ci, calibration_mode in enumerate(calibration_modes[start_mode::]):
-#         response_1, response_2 = (0, 0)
-#         for s in [-1, 1]: # We need a + and - probe to estimate the jacobian
-#             # DM1: Set the DM to the correct state
-#             sysi.add_dm1(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
-#             diff_ims_1 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1)
-#             response_1 += s * diff_ims_1 / (2 * calibration_amplitude)
-#             sysi.add_dm1(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) # remove the mode
-
-#             # DM2: Set the DM to the correct state
-#             sysi.add_dm2(s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact))
-#             diff_ims_2 = take_measurement(sysi, probe_modes, probe_amplitude, DM=1)
-#             response_2 += s * diff_ims_2 / (2 * calibration_amplitude)
-#             sysi.add_dm2(-s * calibration_amplitude * calibration_mode.reshape(sysi.Nact, sysi.Nact)) 
-        
-#         print("\tCalibrated mode {:d}/{:d} in {:.3f}s".format(ci+1, calibration_modes.shape[0], time.time()-start), end='')
-#         print("\r", end="")
-        
-#         if probe_modes.shape[0]==2:
-#             response_matrix_1.append( xp.concatenate([response_1[0, control_mask.ravel()],
-#                                                       response_1[1, control_mask.ravel()]]) )
-#             response_matrix_2.append( xp.concatenate([response_2[0, control_mask.ravel()], 
-#                                                       response_2[1, control_mask.ravel()]]) )
-#         elif probe_modes.shape[0]==3: # if 3 probes are being used
-#             response_matrix_1.append( xp.concatenate([response_1[0, control_mask.ravel()], 
-#                                                       response_1[1, control_mask.ravel()],
-#                                                       response_1[2, control_mask.ravel()]]) )
-#             response_matrix_2.append( xp.concatenate([response_2[0, control_mask.ravel()], 
-#                                                       response_2[1, control_mask.ravel()],
-#                                                       response_2[2, control_mask.ravel()]]) )
-        
-#         if return_all: 
-#             response_cube_1.append(response_1)
-#             response_cube_2.append(response_2)
-            
-#     response_matrix_1 = xp.array(response_matrix_1)
-#     response_matrix_2 = xp.array(response_matrix_2)
-#     response_matrix = xp.concatenate((response_matrix_1,response_matrix_2), axis=0) # this is the response matrix to be inverted
-    
-#     if return_all:
-#         response_cube_1 = xp.array(response_cube_1)
-#         response_cube_2 = xp.array(response_cube_2)
-#         response_cube = xp.concatenate((response_cube_1,response_cube_2), axis=0) # this is the response matrix to be inverted
-#     print()
-#     print('Calibration complete.')
-    
-#     if return_all:
-#         return response_matrix.T, xp.array(response_cube)
-#     else:
-#         return response_matrix.T
-    
 def calibrate(sysi, 
               control_mask, 
               probe_amplitude, probe_modes, 
@@ -196,7 +129,6 @@ def calibrate(sysi,
             fp_rms = xp.sqrt(xp.mean(abs(response_cube)**2, axis=(0,1))).reshape(sysi.npsf,sysi.npsf)
             imshows.imshow1(fp_rms, 'Focal Plane Pixels RMS Response', lognorm=True)
             
-    
     if return_all:
         return response_matrix, xp.array(response_cube)
     else:
@@ -251,7 +183,7 @@ def run(sysi,
     if old_images is None:
         starting_iteration = 0
     else:
-        starting_iteration = len(old_images)
+        starting_iteration = len(old_images) - 1
         
     for i in range(num_iterations):
         print(f"\tClosed-loop iteration {i+starting_iteration} / {num_iterations+starting_iteration}")
@@ -259,18 +191,9 @@ def run(sysi,
         delta_coefficients = single_iteration(sysi, probe_modes, probe_amplitude, control_matrix, control_mask)
         command = (1.0-leakage)*command + loop_gain*delta_coefficients
         
-        # Reconstruct the full phase from the Fourier modes
-#         dm1_command = -calibration_modes.T.dot(utils.ensure_np_array(command[:Nc])).reshape(sysi.Nact,sysi.Nact)
-#         dm2_command = -calibration_modes.T.dot(utils.ensure_np_array(command[Nc:])).reshape(sysi.Nact,sysi.Nact)
-#         print(command.shape)
         act_commands = -calibration_modes.T.dot(utils.ensure_np_array(command))
-#         print(act_commands.shape)
         dm1_command = act_commands[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
         dm2_command = act_commands[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
-        
-        if use_fourier_filter:
-            dm1_command = utils.fourier_filter_command(dm1_command, 5, 21)
-            dm2_command = utils.fourier_filter_command(dm2_command, 5, 21)
         
         # Set the current DM state
         sysi.set_dm1(dm1_ref + dm1_command)

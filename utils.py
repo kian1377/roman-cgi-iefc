@@ -271,8 +271,9 @@ def create_fourier_modes(sysi, control_mask, fourier_sampling=0.75, use='both', 
     else:
         return fourier_modes
 
-def create_fourier_probes(sysi, control_mask, Nact=48, fourier_sampling=0.25, shift=(0,0), nprobes=2,
+def create_fourier_probes(sysi, control_mask, fourier_sampling=0.25, shift=(0,0), nprobes=2,
                           use_weighting=False, plot=False): 
+    Nact = sysi.Nact
     xfp = (xp.linspace(-sysi.npsf/2, sysi.npsf/2-1, sysi.npsf) + 1/2) * sysi.psf_pixelscale_lamD
     fpx, fpy = xp.meshgrid(xfp,xfp)
     
