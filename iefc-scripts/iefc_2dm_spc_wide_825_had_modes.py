@@ -35,14 +35,13 @@ import ray
 if not ray.is_initialized():
     ray.init(log_to_driver=False)
     
-from math_module import xp, ensure_np_array
+from math_module import xp, _scipy, ensure_np_array
 import iefc_2dm 
 import utils
 from imshows import *
 
 data_dir = iefc_2dm.iefc_data_dir
 response_dir = data_dir/'response-data'
-
 
 mode = cgi_phasec_poppy.cgi.CGI(cgi_mode='spc-wide', npsf=150,
                                   use_pupil_defocus=True, 
@@ -58,18 +57,21 @@ ref_im = mode.snap()
 imshow1(ref_im, 'SPC-WFOV Initial Coronagraphic Image\nfor iEFC',
         pxscl=mode.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True, vmin=1e-11)
 
-reload(utils)
-roi1 = utils.create_annular_focal_plane_mask(mode, inner_radius=6, outer_radius=20, edge=None, plot=True)
-roi2 = utils.create_annular_focal_plane_mask(mode, inner_radius=5.4, outer_radius=20.6, edge=None, plot=True)
-roi3 = utils.create_annular_focal_plane_mask(mode, inner_radius=6, outer_radius=11, edge=None, plot=True)
+# apply shaped-pupil-mask decenter
+imshow1(mode.SPM.amplitude)
+spm_amp = mode.SPM.amplitude
+mode.SPM.amplitude = _scipy.ndimage.shift(spm_amp, (5,0))
+imshow1(mode.SPM.amplitude)
 
-relative_weight_1 = 0.9
-relative_weight_2 = 0.4
-weight_map = roi3 + relative_weight_1*(roi1*~roi3) + relative_weight_2*(roi2*~roi1*~roi3)
-control_mask = weight_map>0
-imshow2(weight_map, control_mask*ref_im, lognorm2=True, save_fig='test_fig.png')
+ref_im_errors = mode.snap()
+imshow1(ref_im - ref_im_errors, save_fig='diff_from_nominal.png')
+
+reload(utils)
+control_mask = utils.create_annular_focal_plane_mask(mode, inner_radius=5.4, outer_radius=20.6, edge=None)
+
 mean_ni = xp.mean(ref_im[control_mask])
 print(mean_ni)
+imshow1(control_mask*ref_im, lognorm=True)
 
 reload(utils)
 probe_amp = 2.5e-8
@@ -77,6 +79,14 @@ probe_amp = 2.5e-8
 probe_modes = utils.create_poke_probes([(10,34), (38,34), (24,10)], plot=True)
 # probe_modes = utils.create_poke_probes([(23,9), (25,9), (24,10)], plot=True)
 imshow3(probe_modes[0], probe_modes[1], probe_modes[2], save_fig='probes.png')
+
+reload(utils)
+# probe_amp = 2.5e-8
+# probe_modes = utils.create_random_probes(rms=10*u.nm, alpha=0, dm_mask=mode.dm_mask,
+#                                           fmin=5, fmax=21, nprobes=2, 
+#                                           plot=True, calc_responses=True)
+# imshow2(probe_modes[0], probe_modes[1], save_fig='probes.png')
+
 utils.save_fits(response_dir/f'spc_wide_825_poke_probes_{today}.fits', probe_modes)
 
 calib_modes = utils.create_hadamard_modes(mode.dm_mask, ndms=2)

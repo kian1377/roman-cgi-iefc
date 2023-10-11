@@ -115,7 +115,7 @@ def run_efc_perfect(sysi,
         starting_iteration = len(old_images) - 1
 
     for i in range(iterations):
-        print(f'\tRunning iteration {i+1}/{iterations}.')
+        print(f'\tRunning iteration {i+1+starting_iteration}/{iterations+starting_iteration}.')
         
         electric_field = sysi.calc_psf() # no PWP, just use model
         efield_ri = xp.zeros(2*Nmask)
@@ -145,12 +145,15 @@ def run_efc_perfect(sysi,
         dm1_commands.append(sysi.get_dm1())
         dm2_commands.append(sysi.get_dm2())
         
+        mean_ni = xp.mean(image.ravel()[control_mask.ravel()])
+        # print(f'\tMean NI of this iteration: {mean_ni:.3e}')
+
         if plot_current or plot_all:
 
             imshows.imshow3(dm1_commands[i], dm2_commands[i], image, 
-                               'DM1', 'DM2', 'Image: Iteration {:d}'.format(i+starting_iteration+1),
+                               'DM1', 'DM2', f'Image: Iteration {i+starting_iteration+1}\nMean NI: {mean_ni:.3e}',
                             cmap1='viridis', cmap2='viridis',
-                               lognorm3=True, vmin3=1e-11, pxscl3=sysi.psf_pixelscale_lamD)
+                               lognorm3=True, vmin3=1e-11, pxscl3=sysi.psf_pixelscale_lamD, xlabel3='$\lambda/D$')
 
             if plot_sms:
                 sms_fig = sms(U, s, alpha2, efield_ri, Nmask, Imax_unocc, i)

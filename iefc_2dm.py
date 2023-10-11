@@ -186,12 +186,17 @@ def run(sysi,
         starting_iteration = len(old_images) - 1
         
     for i in range(num_iterations):
-        print(f"\tClosed-loop iteration {i+starting_iteration} / {num_iterations+starting_iteration}")
+        print(f"\tClosed-loop iteration {i+1+starting_iteration} / {num_iterations+starting_iteration}")
         
-        delta_coefficients = single_iteration(sysi, probe_modes, probe_amplitude, control_matrix, control_mask)
-        command = (1.0-leakage)*command + loop_gain*delta_coefficients
+        # delta_coefficients = single_iteration(sysi, probe_modes, probe_amplitude, control_matrix, control_mask)
+        # Take a measurement
+        differential_images = take_measurement(sysi, probe_modes, probe_amplitude)
+        measurement_vector = differential_images[:, control_mask.ravel()].ravel()
+        modal_coefficients = -control_matrix.dot( measurement_vector )
+
+        command = (1.0-leakage)*command + loop_gain*modal_coefficients
         
-        act_commands = -calibration_modes.T.dot(utils.ensure_np_array(command))
+        act_commands = calibration_modes.T.dot(utils.ensure_np_array(command))
         dm1_command = act_commands[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
         dm2_command = act_commands[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
         
@@ -207,14 +212,13 @@ def run(sysi,
         dm2_commands.append(sysi.get_dm2())
         
         mean_ni = xp.mean(image.ravel()[control_mask.ravel()])
-        print(f'\tMean NI of this iteration: {mean_ni:.3e}')
         
         if plot_current: 
             if not plot_all: clear_output(wait=True)
             imshows.imshow3(dm1_commands[i], dm2_commands[i], image, 
-                               'DM1', 'DM2', 'Image: Iteration {:d}'.format(i+starting_iteration+1),
+                               'DM1', 'DM2', f'Image: Iteration {i+starting_iteration+1}\nMean NI: {mean_ni:.3e}',
                             cmap1='viridis', cmap2='viridis',
-                               lognorm3=True, vmin3=1e-11, pxscl3=sysi.psf_pixelscale_lamD)
+                               lognorm3=True, vmin3=1e-11, pxscl3=sysi.psf_pixelscale_lamD, xlabel3='$\lambda/D$')
             
             if plot_radial_contrast:
                 utils.plot_radial_contrast(image, control_mask, sysi.psf_pixelscale_lamD, nbins=50,
