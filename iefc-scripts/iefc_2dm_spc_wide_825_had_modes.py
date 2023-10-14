@@ -58,37 +58,30 @@ imshow1(ref_im, 'SPC-WFOV Initial Coronagraphic Image\nfor iEFC',
         pxscl=mode.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True, vmin=1e-11)
 
 # apply shaped-pupil-mask decenter
-imshow1(mode.SPM.amplitude)
-spm_amp = mode.SPM.amplitude
-mode.SPM.amplitude = _scipy.ndimage.shift(spm_amp, (5,0))
-imshow1(mode.SPM.amplitude)
+# imshow1(mode.SPM.amplitude)
+# spm_amp = mode.SPM.amplitude
+# mode.SPM.amplitude = _scipy.ndimage.shift(spm_amp, (5,0))
+# imshow1(mode.SPM.amplitude)
 
-ref_im_errors = mode.snap()
-imshow1(ref_im - ref_im_errors, save_fig='diff_from_nominal.png')
+# ref_im_errors = mode.snap()
+# imshow1(ref_im - ref_im_errors, save_fig='diff_from_nominal.png')
 
 reload(utils)
-control_mask = utils.create_annular_focal_plane_mask(mode, inner_radius=5.4, outer_radius=20.6, edge=None)
+control_mask = utils.create_annular_focal_plane_mask(mode, inner_radius=5.4, outer_radius=20.6, edge=None, plot=True)
 
+imshow1(control_mask*ref_im, lognorm=True, save_fig='test_control_mask.png')
 mean_ni = xp.mean(ref_im[control_mask])
 print(mean_ni)
-imshow1(control_mask*ref_im, lognorm=True)
 
 reload(utils)
 probe_amp = 2.5e-8
 # probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2, shift=[(-12,6), (12,6), (0,-12)], nprobes=3, plot=True)
-probe_modes = utils.create_poke_probes([(10,34), (38,34), (24,10)], plot=True)
-# probe_modes = utils.create_poke_probes([(23,9), (25,9), (24,10)], plot=True)
-imshow3(probe_modes[0], probe_modes[1], probe_modes[2], save_fig='probes.png')
+# probe_modes = utils.create_poke_probes([(10,34), (38,34), (24,10)], plot=True)
+probe_modes = utils.create_poke_probes([(11,31), (36,31), (23,9)], plot=True)
+imshow3(probe_modes[0], probe_modes[1], probe_modes[2], save_fig='test_probes.png')
+utils.save_fits(response_dir/f'spc_wide_825_poke_mode_probes_{today}.fits', probe_modes)
 
-reload(utils)
-# probe_amp = 2.5e-8
-# probe_modes = utils.create_random_probes(rms=10*u.nm, alpha=0, dm_mask=mode.dm_mask,
-#                                           fmin=5, fmax=21, nprobes=2, 
-#                                           plot=True, calc_responses=True)
-# imshow2(probe_modes[0], probe_modes[1], save_fig='probes.png')
-
-utils.save_fits(response_dir/f'spc_wide_825_poke_probes_{today}.fits', probe_modes)
-
+calib_amp = 10e-9
 calib_modes = utils.create_hadamard_modes(mode.dm_mask, ndms=2)
 Nmodes = calib_modes.shape[0]
 Nhad = calib_modes.shape[0]//2
