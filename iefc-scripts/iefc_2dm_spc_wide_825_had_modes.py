@@ -58,13 +58,13 @@ imshow1(ref_im, 'SPC-WFOV Initial Coronagraphic Image\nfor iEFC',
         pxscl=mode.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True, vmin=1e-11)
 
 # apply shaped-pupil-mask decenter
-# imshow1(mode.SPM.amplitude)
-# spm_amp = mode.SPM.amplitude
-# mode.SPM.amplitude = _scipy.ndimage.shift(spm_amp, (5,0))
-# imshow1(mode.SPM.amplitude)
+imshow1(mode.SPM.amplitude)
+spm_amp = mode.SPM.amplitude
+mode.SPM.amplitude = _scipy.ndimage.shift(spm_amp, (5,0))
+imshow1(mode.SPM.amplitude)
 
-# ref_im_errors = mode.snap()
-# imshow1(ref_im - ref_im_errors, save_fig='diff_from_nominal.png')
+ref_im_errors = mode.snap()
+imshow1(ref_im - ref_im_errors, save_fig='diff_from_nominal.png')
 
 reload(utils)
 control_mask = utils.create_annular_focal_plane_mask(mode, inner_radius=5.4, outer_radius=20.6, edge=None, plot=True)
@@ -83,15 +83,7 @@ utils.save_fits(response_dir/f'spc_wide_825_poke_mode_probes_{today}.fits', prob
 
 calib_amp = 10e-9
 calib_modes = utils.create_hadamard_modes(mode.dm_mask, ndms=2)
-Nmodes = calib_modes.shape[0]
-Nhad = calib_modes.shape[0]//2
 print(calib_modes.shape)
-i = 8
-imshow2(calib_modes[i,:mode.Nact**2].reshape(mode.Nact,mode.Nact), calib_modes[i+Nhad,mode.Nact**2:].reshape(mode.Nact,mode.Nact))
-
-reload(iefc_2dm)
-
-calib_amp = 10e-9
 
 response_matrix, response_cube = iefc_2dm.calibrate(mode, 
                                                     control_mask,
@@ -102,8 +94,8 @@ response_matrix, response_cube = iefc_2dm.calibrate(mode,
                                                    )
 
 
-utils.save_fits(response_dir/f'spc_wide_825_had_modes_response_matrix_{today}.fits', response_matrix)
-utils.save_fits(response_dir/f'spc_wide_825_had_modes_response_cube_{today}.fits', response_cube)
+utils.save_fits(response_dir/f'spc_wide_825_had_modes_perturbed_response_matrix_{today}.fits', response_matrix)
+# utils.save_fits(response_dir/f'spc_wide_825_had_modes_response_cube_{today}.fits', response_cube)
 
 
 

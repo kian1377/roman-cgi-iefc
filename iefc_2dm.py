@@ -218,6 +218,8 @@ def run(sysi,
             imshows.imshow3(dm1_commands[i], dm2_commands[i], image, 
                                'DM1', 'DM2', f'Image: Iteration {i+starting_iteration+1}\nMean NI: {mean_ni:.3e}',
                             cmap1='viridis', cmap2='viridis',
+                            cbar1_label='m', cbar2_label='m', cbar3_label='NI',
+                            xlabel1='Actuators', xlabel2='Actuators',
                                lognorm3=True, vmin3=1e-11, pxscl3=sysi.psf_pixelscale_lamD, xlabel3='$\lambda/D$')
             
             if plot_radial_contrast:
