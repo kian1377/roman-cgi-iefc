@@ -1,5 +1,5 @@
-import sys
-sys.path.append("..")
+# import sys
+# sys.path.append("..")
 
 import numpy as np
 import scipy
@@ -134,11 +134,11 @@ print(mean_ni)
 
 probe_amp = 2.5e-8
 # probe_modes = utils.create_poke_probes([(10,34), (38,34), (24,10)], plot=True)
-probe_modes = utils.create_poke_probes([(11,31), (36,31), (23,9)], plot=True)
+# probe_modes = utils.create_poke_probes([(11,31), (36,31), (23,9)], plot=True)
 
-# probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2,
-#                                           shift=[(-12,7), (12,7),(0,-14), (0,0)], nprobes=3,
-#                                            use_weighting=True,)
+probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2,
+                                          shift=[(-12,7), (12,7),(0,-14), (0,0)], nprobes=3,
+                                           use_weighting=True,)
 
 calib_amp = 10e-9
 calib_modes = utils.create_hadamard_modes(mode.dm_mask, ndms=2)
@@ -153,11 +153,11 @@ response_matrix, response_cube = iefc_2dm.calibrate(mode,
 #                                                     plot_responses=False,
                                                    )
 
-utils.save_fits(response_dir/f'spc_wide_band4b_had_modes_response_matrix_{today}.fits', response_matrix)
-utils.save_fits(response_dir/f'spc_wide_band4b_had_modes_response_cube_{today}.fits', response_cube)
+# utils.save_fits(response_dir/f'spc_wide_band4b_had_modes_response_matrix_{today}.fits', response_matrix)
+# utils.save_fits(response_dir/f'spc_wide_band4b_had_modes_response_cube_{today}.fits', response_cube)
 
-# utils.save_fits(response_dir/f'spc_wide_band4b_had_modes_fourier_response_matrix_{today}.fits', response_matrix)
-# utils.save_fits(response_dir/f'spc_wide_band4b_had_modes_fourier_response_cube_{today}.fits', response_cube)
+utils.save_fits(response_dir/f'spc_wide_band4b_had_modes_fourier_response_matrix_{today}.fits', response_matrix)
+utils.save_fits(response_dir/f'spc_wide_band4b_had_modes_fourier_response_cube_{today}.fits', response_cube)
 
 # iefc_2dm_spc_wide_band4_had_modes.py
 

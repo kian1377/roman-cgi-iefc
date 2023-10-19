@@ -336,7 +336,7 @@ def imshow3(arr1, arr2, arr3,
     divider = make_axes_locatable(ax[2])
     cax = divider.append_axes("right", size="4%", pad=0.075)
     cbar = fig.colorbar(im, cax=cax)
-    cbar.ax.set_ylabel(cbar3_label, rotation=0)
+    cbar.ax.set_ylabel(cbar3_label, rotation=0, labelpad=15)
 
     if yticks is not None:
         for i in range(3):
