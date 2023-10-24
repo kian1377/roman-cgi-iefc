@@ -97,7 +97,7 @@ for i in range(nwaves):
 mode = cgi_phasec_poppy.parallelized_cgi.ParallelizedCGI(actors=actors)
 
 mode.use_noise = True
-mode.exp_time = 2*u.s
+mode.exp_time = 1*u.s
 mode.gain = 1
 mode.dark_current_rate = 0.05*u.electron/u.pix/u.hour
 mode.read_noise = 120*u.electron/u.pix
@@ -113,7 +113,7 @@ mode.Imax_ref = max_ref
 mode.exp_time_ref = mode.exp_time
 mode.gain_ref = mode.gain
 
-mode.exp_time = 2*u.s
+mode.exp_time = 1*u.s
 mode.gain = 1
 
 ref_im = mode.snap()
