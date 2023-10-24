@@ -481,6 +481,7 @@ def save_fits(fpath, data, header=None, ow=True, quiet=False):
     if not quiet: print('Saved data to: ', str(fpath))
 
 # functions for saving python objects
+import pickle
 def save_pickle(fpath, data, quiet=False):
     out = open(str(fpath), 'wb')
     pickle.dump(data, out)
