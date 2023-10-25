@@ -163,7 +163,10 @@ def imshow2(arr1, arr2,
     divider = make_axes_locatable(ax[0])
     cax = divider.append_axes("right", size="4%", pad=0.075)
     cbar = fig.colorbar(im, cax=cax)
-    cbar.ax.set_ylabel(cbar1_label, rotation=0)
+    cbar.ax.set_ylabel(cbar1_label, 
+                    #    rotation=270, labelpad=12,
+                       )
+
     
     # second plot
     im = ax[1].imshow(arr2, cmap=cmap2, norm=norm2, extent=extent2)
