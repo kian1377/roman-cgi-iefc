@@ -64,9 +64,10 @@ def build_jacobian(sysi,
     return response_matrix
 
 def run_efc_perfect(sysi, 
-                    jac, 
+                    # control_matrix,
+                    response_matrix,
+                    reg_fun, reg_conds,
                     calibration_modes,
-                    control_matrix,
                     control_mask, 
                     Imax_unocc=1,
                     loop_gain=0.5, 
@@ -79,18 +80,19 @@ def run_efc_perfect(sysi,
                     old_images=None,
                     old_dm1_commands=None,
                     old_dm2_commands=None,
+                    old_regs =None, 
                     ):
     # This function is only for running EFC simulations
     print('Beginning closed-loop EFC simulation.')    
-    commands = np.zeros((iterations, sysi.Nact, sysi.Nact), dtype=np.float64)
-    efields = xp.zeros((iterations, sysi.npsf, sysi.npsf), dtype=xp.complex128)
-    images = xp.zeros((iterations, sysi.npsf, sysi.npsf), dtype=xp.float64)
+    # commands = np.zeros((iterations, sysi.Nact, sysi.Nact), dtype=np.float64)
+    # efields = xp.zeros((iterations, sysi.npsf, sysi.npsf), dtype=xp.complex128)
+    # images = xp.zeros((iterations, sysi.npsf, sysi.npsf), dtype=xp.float64)
     start = time.time()
     
-    U, s, V = xp.linalg.svd(jac, full_matrices=False)
-    alpha2 = xp.max( xp.diag( xp.real( jac.conj().T @ jac ) ) )
-    print('Max singular value squared:\t', s.max()**2)
-    print('alpha^2:\t\t\t', alpha2) 
+    # U, s, V = xp.linalg.svd(jac, full_matrices=False)
+    # alpha2 = xp.max( xp.diag( xp.real( jac.conj().T @ jac ) ) )
+    # print('Max singular value squared:\t', s.max()**2)
+    # print('alpha^2:\t\t\t', alpha2) 
     
     # calibration_modes = xp.array(calibration_modes)
 
@@ -102,6 +104,7 @@ def run_efc_perfect(sysi,
     metric_images = []
     dm1_commands = []
     dm2_commands = []
+    regs = []
 
     dm1_ref = sysi.get_dm1()
     dm2_ref = sysi.get_dm2()
@@ -123,30 +126,95 @@ def run_efc_perfect(sysi,
         efield_ri[::2] = electric_field[control_mask].real
         efield_ri[1::2] = electric_field[control_mask].imag
 
-        modal_coefficients = -control_matrix.dot(efield_ri)
-        command = (1.0-leakage)*command + loop_gain*modal_coefficients
+        # modal_coefficients = -control_matrix.dot(efield_ri)
+        # command = (1.0-leakage)*command + loop_gain*modal_coefficients
         
-        # Reconstruct the full phase from the Fourier modes
-        act_commands = calibration_modes.T.dot(utils.ensure_np_array(command))
-        dm1_command = act_commands[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
-        dm2_command = act_commands[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
+        # # Reconstruct the full phase from the Fourier modes
+        # act_commands = calibration_modes.T.dot(utils.ensure_np_array(command))
+        # dm1_command = act_commands[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
+        # dm2_command = act_commands[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
 
-        # Set the current DM state
-        sysi.set_dm1(dm1_ref + dm1_command)
-        sysi.set_dm2(dm2_ref + dm2_command)
+        # # Set the current DM state
+        # sysi.set_dm1(dm1_ref + dm1_command)
+        # sysi.set_dm2(dm2_ref + dm2_command)
         
-        # Take an image to estimate the metrics
-        # electric_field = sysi.calc_psf()
-        # image = xp.abs(electric_field)**2
-        image = sysi.snap()
+        # # Take an image to estimate the metrics
+        # # electric_field = sysi.calc_psf()
+        # # image = xp.abs(electric_field)**2
+        # image = sysi.snap()
 
-        # efields.append([copy.copy(electric_field)])
-        metric_images.append(copy.copy(image))
-        dm1_commands.append(sysi.get_dm1())
-        dm2_commands.append(sysi.get_dm2())
+        # # efields.append([copy.copy(electric_field)])
+        # metric_images.append(copy.copy(image))
+        # dm1_commands.append(sysi.get_dm1())
+        # dm2_commands.append(sysi.get_dm2())
         
-        mean_ni = xp.mean(image.ravel()[control_mask.ravel()])
+        # mean_ni = xp.mean(image.ravel()[control_mask.ravel()])
         # print(f'\tMean NI of this iteration: {mean_ni:.3e}')
+
+        if np.isscalar(reg_conds):
+            control_matrix = reg_fun(response_matrix, reg_conds)
+            modal_coefficients = -control_matrix.dot( efield_ri)
+            command = (1.0-leakage)*command + loop_gain*modal_coefficients
+
+            act_commands = calibration_modes.T.dot(utils.ensure_np_array(command))
+            dm1_command = act_commands[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
+            dm2_command = act_commands[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
+
+            best_dm1_command = dm1_ref + dm1_command
+            best_dm2_command = dm2_ref + dm2_command
+            sysi.set_dm1(best_dm1_command)
+            sysi.set_dm2(best_dm2_command)
+            best_image = sysi.snap()
+
+            mean_ni = xp.mean(best_image.ravel()[control_mask.ravel()])
+
+            regs.append(reg_conds)
+        else:
+            mean_nis = xp.zeros(len(reg_conds))
+            dm1_command_per_reg = np.zeros((len(reg_conds), sysi.Nact, sysi.Nact))
+            dm2_command_per_reg = np.zeros((len(reg_conds), sysi.Nact, sysi.Nact))
+            image_per_reg = xp.zeros((len(reg_conds), sysi.npsf, sysi.npsf))
+            command_per_reg = xp.zeros((len(reg_conds), response_matrix.shape[1]))
+            for j in range(len(reg_conds)): # compute the control matrix for a range of regularization parameters and use the best one
+                # print(j, reg_conds[j])
+                control_matrix = reg_fun(response_matrix, reg_conds[j])
+                modal_coefficients = -control_matrix.dot( efield_ri )
+                command_per_reg[j] = (1.0-leakage)*command + loop_gain*modal_coefficients
+                
+                act_commands = calibration_modes.T.dot(utils.ensure_np_array(command_per_reg[j]))
+                dm1_command_per_reg[j] = act_commands[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
+                dm2_command_per_reg[j] = act_commands[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
+                
+                # Set the current DM state
+                sysi.set_dm1(dm1_ref + dm1_command_per_reg[j])
+                sysi.set_dm2(dm2_ref + dm2_command_per_reg[j])
+                
+                # Take an image to estimate the metrics
+                image_per_reg[j] = copy.copy(sysi.snap())
+                # print(xp.mean(image_per_reg[j][control_mask]))
+                mean_nis[j] = xp.mean(image_per_reg[j][control_mask])
+
+            # print(mean_nis)
+            j_min = ensure_np_array(np.argmin(mean_nis))
+            best_reg = reg_conds[j_min]
+            print(f'\tBest regularization parameter is {best_reg:f}')
+            # print('Mean NIs: ', mean_nis)
+            mean_ni = mean_nis[j_min]
+            command = command_per_reg[j_min]
+            best_del_dm1 = dm1_command_per_reg[j_min]
+            best_del_dm2 = dm2_command_per_reg[j_min]
+            best_image = image_per_reg[j_min]
+
+            best_dm1_command = dm1_ref + best_del_dm1
+            best_dm2_command = dm2_ref + best_del_dm2
+            sysi.set_dm1(best_dm1_command)
+            sysi.set_dm2(best_dm2_command)
+            best_image = sysi.snap()
+            regs.append(best_reg)
+
+        metric_images.append(copy.copy(best_image))
+        dm1_commands.append(best_dm1_command)
+        dm2_commands.append(best_dm2_command)
 
         if plot_current or plot_all:
 
@@ -175,7 +243,9 @@ def run_efc_perfect(sysi,
         dm1_commands = xp.concatenate([old_dm1_commands, dm1_commands], axis=0)
     if old_dm2_commands is not None:
         dm2_commands = xp.concatenate([old_dm2_commands, dm2_commands], axis=0)
-                
+    if old_regs is not None:
+        regs = xp.concatenate([xp.array(old_regs), xp.array(regs)], axis=0)
+
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
     return metric_images, dm1_commands, dm2_commands
