@@ -145,9 +145,15 @@ def run(sysi,
         probe_modes, probe_amplitude, 
         calibration_modes,
         control_mask,
-        num_iterations=10, 
+        num_iterations=10,
         loop_gain=0.5, 
         leakage=0.0,
+        probe_exp_time=None, 
+        probe_nframes=None, 
+        probe_em_gain=None, 
+        metric_exp_time=None, 
+        metric_nframes=None, 
+        metric_em_gain=None, 
         plot_current=True,
         plot_all=False,
         plot_radial_contrast=True,
@@ -184,7 +190,13 @@ def run(sysi,
         
         # delta_coefficients = single_iteration(sysi, probe_modes, probe_amplitude, control_matrix, control_mask)
         # Take a measurement
-        differential_images = take_measurement(sysi, probe_modes, probe_amplitude)
+        if probe_exp_time is not None:
+            sysi.exp_time = probe_exp_time
+        if probe_nframes is not None:
+            sysi.Nframes = probe_nframes
+        if probe_em_gain is not None:
+            sysi.EMCCD.em_gain = probe_em_gain
+        differential_images = take_measurement(sysi, probe_modes, probe_amplitude, plot=True)
         measurement_vector = differential_images[:, control_mask.ravel()].ravel()
         # modal_coefficients = -control_matrix.dot( measurement_vector )
 
@@ -220,6 +232,13 @@ def run(sysi,
             best_dm2_command = dm2_ref + dm2_command
             sysi.set_dm1(best_dm1_command)
             sysi.set_dm2(best_dm2_command)
+
+            if metric_exp_time is not None:
+                sysi.exp_time = metric_exp_time
+            if metric_nframes is not None:
+                sysi.Nframes = metric_nframes
+            if metric_em_gain is not None:
+                sysi.EMCCD.em_gain = metric_em_gain
             best_image = sysi.snap()
 
             mean_ni = xp.mean(best_image.ravel()[control_mask.ravel()])
@@ -272,15 +291,15 @@ def run(sysi,
         dm1_commands.append(best_dm1_command)
         dm2_commands.append(best_dm2_command)
 
-        print(i)
         if plot_current: 
             if not plot_all: clear_output(wait=True)
+            vmin = xp.min(metric_images[i]) if xp.min(metric_images[i])>1e-11 else 1e-11
             imshows.imshow3(dm1_commands[i], dm2_commands[i], metric_images[i], 
                                'DM1', 'DM2', f'Image: Iteration {i+starting_iteration+1}\nMean NI: {mean_ni:.3e}',
                             cmap1='viridis', cmap2='viridis',
                             cbar1_label='m', cbar2_label='m', cbar3_label='NI',
                             xlabel1='Actuators', xlabel2='Actuators',
-                               lognorm3=True, vmin3=1e-11, pxscl3=sysi.psf_pixelscale_lamD, xlabel3='$\lambda/D$')
+                               lognorm3=True, vmin3=vmin, pxscl3=sysi.psf_pixelscale_lamD, xlabel3='$\lambda/D$')
             
             if plot_radial_contrast:
                 utils.plot_radial_contrast(best_image, control_mask, sysi.psf_pixelscale_lamD, nbins=50,

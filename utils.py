@@ -19,10 +19,11 @@ def pad_or_crop( arr_in, npix ):
         x2 = x1 + npix
         arr_out = arr_in[x1:x2,x1:x2].copy()
     else:
-        if isinstance(arr_in, np.ndarray):
-            arr_out = np.zeros((npix,npix), dtype=arr_in.dtype)
-        elif isinstance(arr_in, cp.ndarray):
-            arr_out = cp.zeros((npix,npix), dtype=arr_in.dtype)
+        # if isinstance(arr_in, np.ndarray):
+        #     arr_out = np.zeros((npix,npix), dtype=arr_in.dtype)
+        # elif isinstance(arr_in, cp.ndarray):
+        #     arr_out = cp.zeros((npix,npix), dtype=arr_in.dtype)
+        arr_out = xp.zeros((npix,npix), dtype=arr_in.dtype)
         x1 = npix // 2 - n_arr_in // 2
         x2 = x1 + n_arr_in
         arr_out[x1:x2,x1:x2] = arr_in

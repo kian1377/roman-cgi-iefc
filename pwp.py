@@ -1,6 +1,6 @@
-from .math_module import xp, _scipy, ensure_np_array
-from . import utils
-from . import imshows
+from math_module import xp, _scipy, ensure_np_array
+import utils
+import imshows
 
 import numpy as np
 import astropy.units as u
@@ -53,7 +53,7 @@ def run_pwp_bp(sysi,
     In = []
     for i,probe in enumerate(probes):
         for amp in amps:
-            sysi.add_dm(amp*probe)
+            sysi.add_dm1(amp*probe)
             psf = sysi.snap()
                 
             if amp==-1: 
@@ -61,7 +61,7 @@ def run_pwp_bp(sysi,
             else: 
                 Ip.append(psf)
                 
-            sysi.add_dm(-amp*probe) # remove probe from DM
+            sysi.add_dm1(-amp*probe) # remove probe from DM
             
         if plot:
             imshows.imshow3(Ip[i], In[i], Ip[i]-In[i], lognorm1=True, lognorm2=True, pxscl=sysi.psf_pixelscale_lamD)
@@ -77,9 +77,9 @@ def run_pwp_bp(sysi,
             if i==0: 
                 E_full = model.calc_psf()[control_mask]
                 
-            model.add_dm(probes[i])
+            model.add_dm1(probes[i])
             E_full_probe = model.calc_psf()[control_mask]
-            model.add_dm(-probes[i])
+            model.add_dm1(-probes[i])
             
             E_probe = E_full_probe - E_full
             # print(type(E_probe))

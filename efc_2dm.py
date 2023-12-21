@@ -69,6 +69,8 @@ def run_efc_perfect(sysi,
                     reg_fun, reg_conds,
                     calibration_modes,
                     control_mask, 
+                    est_fun=None, 
+                    est_params=None, 
                     Imax_unocc=1,
                     loop_gain=0.5, 
                     leakage=0.0,
@@ -120,7 +122,10 @@ def run_efc_perfect(sysi,
     for i in range(iterations):
         print(f'\tRunning iteration {i+1+starting_iteration}/{iterations+starting_iteration}.')
         
-        electric_field = sysi.calc_psf() # no PWP, just use model
+        if est_fun is None:
+            electric_field = sysi.calc_psf() # no PWP, just use model
+        else:
+            electric_field = est_fun(sysi, **est_params)
         efield_ri = xp.zeros(2*Nmask)
 
         efield_ri[::2] = electric_field[control_mask].real
@@ -218,7 +223,7 @@ def run_efc_perfect(sysi,
 
         if plot_current or plot_all:
 
-            imshows.imshow3(dm1_commands[i], dm2_commands[i], image, 
+            imshows.imshow3(dm1_commands[i], dm2_commands[i], best_image, 
                                'DM1', 'DM2', f'Image: Iteration {i+starting_iteration+1}\nMean NI: {mean_ni:.3e}',
                             cmap1='viridis', cmap2='viridis',
                             cbar1_label='m', cbar2_label='m', cbar3_label='NI',
@@ -229,7 +234,7 @@ def run_efc_perfect(sysi,
                 sms_fig = sms(U, s, alpha2, efield_ri, Nmask, Imax_unocc, i)
 
             if plot_radial_contrast:
-                utils.plot_radial_contrast(image, control_mask, sysi.psf_pixelscale_lamD, nbins=100)
+                utils.plot_radial_contrast(best_image, control_mask, sysi.psf_pixelscale_lamD, nbins=100)
             
             if not plot_all: clear_output(wait=True)
 
@@ -248,7 +253,7 @@ def run_efc_perfect(sysi,
 
     print('EFC completed in {:.3f} sec.'.format(time.time()-start))
     
-    return metric_images, dm1_commands, dm2_commands
+    return metric_images, dm1_commands, dm2_commands, regs
 
 
 

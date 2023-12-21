@@ -69,6 +69,7 @@ def calibrate(sysi,
               control_mask, 
               probe_amplitude, probe_modes, 
               calibration_amplitude, calibration_modes, 
+              scale_calib_amp=False, scale_factors=None,
               return_all=False,
               plot_responses=True):
     print('Calibrating iEFC...')
@@ -86,17 +87,22 @@ def calibrate(sysi,
             dm1_mode = calibration_mode[:sysi.Nact**2].reshape(sysi.Nact, sysi.Nact)
             dm2_mode = calibration_mode[sysi.Nact**2:].reshape(sysi.Nact, sysi.Nact)
             
+            if scale_calib_amp and scale_factors is not None:
+                calib_amp = calibration_amplitude * scale_factors[ci]
+            else: 
+                calib_amp = calibration_amplitude
+
             # Add the mode to the DMs
-            sysi.add_dm1(s * calibration_amplitude * dm1_mode)
-            sysi.add_dm2(s * calibration_amplitude * dm2_mode)
+            sysi.add_dm1(s * calib_amp * dm1_mode)
+            sysi.add_dm2(s * calib_amp * dm2_mode)
             
             # Compute reponse with difference images of probes
             diff_ims = take_measurement(sysi, probe_modes, probe_amplitude, DM=1)
-            response += s * diff_ims / (2 * calibration_amplitude)
+            response += s * diff_ims / (2 * calib_amp)
             
             # Remove the mode form the DMs
-            sysi.add_dm1(-s * calibration_amplitude * dm1_mode) # remove the mode
-            sysi.add_dm2(-s * calibration_amplitude * dm2_mode) 
+            sysi.add_dm1(-s * calib_amp * dm1_mode) # remove the mode
+            sysi.add_dm2(-s * calib_amp * dm2_mode) 
         
         print("\tCalibrated mode {:d}/{:d} in {:.3f}s".format(ci+1, calibration_modes.shape[0], time.time()-start), end='')
         print("\r", end="")
