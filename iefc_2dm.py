@@ -60,6 +60,7 @@ def calibrate(sysi,
               control_mask, 
               probe_amplitude, probe_modes, 
               calibration_amplitude, calibration_modes, 
+              scale_factors=None, 
               return_all=False,
               plot_responses=True):
     print('Calibrating iEFC...')
@@ -77,17 +78,27 @@ def calibrate(sysi,
             dm1_mode = calibration_mode[:sysi.Nact**2].reshape(sysi.Nact, sysi.Nact)
             dm2_mode = calibration_mode[sysi.Nact**2:].reshape(sysi.Nact, sysi.Nact)
             
+            if scale_factors is not None: 
+                calib_amp = calibration_amplitude * scale_factors[ci]
+            else:
+                calib_amp = calibration_amplitude
+
             # Add the mode to the DMs
-            sysi.add_dm1(s * calibration_amplitude * dm1_mode)
-            sysi.add_dm2(s * calibration_amplitude * dm2_mode)
+            sysi.add_dm1(s * calib_amp * dm1_mode)
+            sysi.add_dm2(s * calib_amp * dm2_mode)
             
             # Compute reponse with difference images of probes
-            diff_ims = take_measurement(sysi, probe_modes, probe_amplitude, DM=1)
-            response += s * diff_ims / (2 * calibration_amplitude)
+            diff_ims, images = take_measurement(sysi, probe_modes, probe_amplitude, DM=1, return_all=True)
+            # if sysi.EMCCD is not None:
+            #     print(xp.max(images/sysi.norm_factor))
+            #     if xp.max(images/sysi.norm_factor)>((2**sysi.EMCCD.nbits)-10):
+            #         print('Calibration frames are saturated. Reducing calibration amplitude and trying again. ')
+            #         calib_amp = 1e-9
+            response += s * diff_ims / (2 * calib_amp)
             
             # Remove the mode form the DMs
-            sysi.add_dm1(-s * calibration_amplitude * dm1_mode) # remove the mode
-            sysi.add_dm2(-s * calibration_amplitude * dm2_mode) 
+            sysi.add_dm1(-s * calib_amp * dm1_mode) # remove the mode
+            sysi.add_dm2(-s * calib_amp * dm2_mode) 
         
         print("\tCalibrated mode {:d}/{:d} in {:.3f}s".format(ci+1, calibration_modes.shape[0], time.time()-start), end='')
         print("\r", end="")
@@ -156,7 +167,8 @@ def run(sysi,
         metric_em_gain=None, 
         plot_current=True,
         plot_all=False,
-        plot_radial_contrast=True,
+        plot_radial_contrast=False,
+        plot_probes=False,
         old_images=None,
         old_dm1_commands=None,
         old_dm2_commands=None,
@@ -196,7 +208,7 @@ def run(sysi,
             sysi.Nframes = probe_nframes
         if probe_em_gain is not None:
             sysi.EMCCD.em_gain = probe_em_gain
-        differential_images = take_measurement(sysi, probe_modes, probe_amplitude, plot=True)
+        differential_images = take_measurement(sysi, probe_modes, probe_amplitude, plot=plot_probes)
         measurement_vector = differential_images[:, control_mask.ravel()].ravel()
         # modal_coefficients = -control_matrix.dot( measurement_vector )
 

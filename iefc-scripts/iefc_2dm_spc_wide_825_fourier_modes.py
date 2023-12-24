@@ -31,21 +31,22 @@ warnings.filterwarnings("ignore")
 
 import cgi_phasec_poppy
 
-import ray
-if not ray.is_initialized():
-    ray.init(log_to_driver=False)
-    
 from math_module import xp, ensure_np_array
 import iefc_2dm 
 import utils
 from imshows import *
+
+dm1_flat = fits.getdata(cgi_phasec_poppy.data_dir/'dm-acts'/'flatmaps'/'spc_wide_band4_flattened_dm1.fits')
+dm2_flat = fits.getdata(cgi_phasec_poppy.data_dir/'dm-acts'/'flatmaps'/'spc_wide_band4_flattened_dm2.fits')
 
 data_dir = iefc_2dm.iefc_data_dir
 response_dir = data_dir/'response-data'
 
 mode = cgi_phasec_poppy.cgi.CGI(cgi_mode='spc-wide', npsf=150,
                                   use_pupil_defocus=True, 
-                                  use_opds=True)
+                                  use_opds=True,
+                                  dm1_ref=dm1_flat, dm2_ref=dm2_flat,
+                                  )
 mode.use_fpm = False
 ref_unocc_im = mode.snap()
 imshow1(ref_unocc_im, pxscl=mode.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True)
