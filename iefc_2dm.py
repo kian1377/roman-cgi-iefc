@@ -66,6 +66,7 @@ def calibrate(sysi,
     print('Calibrating iEFC...')
     
     response_matrix = []
+    calib_amps = []
     if return_all: # be ready to store the full focal plane responses (difference images)
         response_cube = []
     
@@ -93,7 +94,8 @@ def calibrate(sysi,
             #     print(xp.max(images/sysi.norm_factor))
             #     if xp.max(images/sysi.norm_factor)>((2**sysi.EMCCD.nbits)-10):
             #         print('Calibration frames are saturated. Reducing calibration amplitude and trying again. ')
-            #         calib_amp = 1e-9
+            #         calib_amp -= 1e-9
+            calib_amps.append(calib_amp)
             response += s * diff_ims / (2 * calib_amp)
             
             # Remove the mode form the DMs
@@ -132,7 +134,7 @@ def calibrate(sysi,
             imshows.imshow1(fp_rms, 'Focal Plane Pixels RMS Response', lognorm=True)
             
     if return_all:
-        return response_matrix, xp.array(response_cube)
+        return response_matrix, xp.array(response_cube), xp.array(calib_amps)
     else:
         return response_matrix
     

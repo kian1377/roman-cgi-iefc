@@ -208,44 +208,48 @@ imshow2(calib_modes[1, :mode.Nact**2].reshape(mode.Nact,mode.Nact), control_mask
 scale_factors = []
 for i in range(fs.shape[0]):
     mode_extent = xp.sqrt(fs[i][0]**2 + fs[i][1]**2)
-    if mode_extent>22:
-        factor = 10
-    elif mode_extent<22 and mode_extent>20:
-        factor = 3
-    elif mode_extent<20 and mode_extent>11:
-        factor = 2.5/2
-    elif mode_extent<11 and mode_extent>7:
+    if mode_extent<2:
+        factor = 4
+    elif mode_extent>2 and mode_extent<3:
         factor = 1
-    elif mode_extent<7 and mode_extent>5:
-        factor = 1.5
-    elif mode_extent<5 and mode_extent>3:
-        factor = 3
-    elif mode_extent<3 and mode_extent>0:
-        factor = 10
+    elif mode_extent>3 and mode_extent<4:
+        factor = 3/4
+    elif mode_extent>4 and mode_extent<6:
+        factor = 1/2
+    elif mode_extent>6 and mode_extent<9:
+        factor = 1/5
+    elif mode_extent>9 and mode_extent<10:
+        factor = 1/4
+    elif mode_extent>10 and mode_extent<15:
+        factor = 1/5
+    elif mode_extent>15 and mode_extent<18:
+        factor = 1/5
+    elif mode_extent>18 and mode_extent<20:
+        factor = 1/3
+    elif mode_extent>20 and mode_extent<22:
+        factor = 1/2
+    elif mode_extent>22 and mode_extent<23:
+        factor = 1
+    elif mode_extent>23:
+        factor = 2
     scale_factors.append(factor)
 scale_factors = np.array(scale_factors)
+
 scale_factors = np.concatenate([scale_factors,scale_factors, scale_factors, scale_factors])
 print(scale_factors.shape)
 
 mode.EMCCD.em_gain = 300
-mode.exp_time = 0.05
-mode.Nframes = 10
+mode.exp_time = 0.1
+mode.Nframes = 5
 
-calib_amp = 2e-9
+calib_amp = 5e-9
 probe_amp = 25e-9
 
-mode.normalize = False
-dm_mode = calib_modes[i,:mode.Nact**2].reshape(mode.Nact,mode.Nact)
-scaled_calib_amp = calib_amp * scale_factors[i]
-print(scale_factors[i], scaled_calib_amp)
-
-mode.add_dm1(scaled_calib_amp*dm_mode)
-mode.add_dm1(probe_amp*probe_modes[0])
-im = mode.snap()
-mode.add_dm1(-probe_amp*probe_modes[0])
-mode.add_dm1(-scaled_calib_amp*dm_mode)
-
 mode.normalize = True
+
+i = 424
+scaled_calib_amp = scale_factors[i] * calib_amp
+dm_mode = calib_modes[i,:mode.Nact**2].reshape(mode.Nact,mode.Nact)
 mode.add_dm1(scaled_calib_amp*dm_mode)
 differential_images, single_images = iefc_2dm.take_measurement(mode, probe_modes, probe_amp, return_all=True, plot=True)
 ims = 2*scaled_calib_amp*differential_images.reshape(probe_modes.shape[0], mode.npsf, mode.npsf)
@@ -253,14 +257,14 @@ mode.add_dm1(-scaled_calib_amp*dm_mode)
 imshow3(ims[0], ims[1], ims[2], save_fig='test_diff_ims.png')
 
 mode.normalize = True
-response_matrix, response_cube = iefc_2dm.calibrate(mode, 
-                                                    control_mask,
-                                                    probe_amp, probe_modes, 
-                                                     calib_amp, calib_modes, 
-                                                     scale_factors=scale_factors,
-                                                     return_all=True, 
-#                                                     plot_responses=False,
-                                                   )
+response_matrix, response_cube, calib_amps = iefc_2dm.calibrate(mode, 
+                                                                control_mask,
+                                                                probe_amp, probe_modes, 
+                                                                calib_amp, calib_modes, 
+                                                                scale_factors=scale_factors,
+                                                                return_all=True, 
+            #                                                     plot_responses=False,
+                                                            )
 utils.save_fits(response_dir/f'spc_wide_band4b_emccd_response_matrix_{today}.fits', 
                 response_matrix,
                 header={'em_gain':mode.EMCCD.em_gain,
