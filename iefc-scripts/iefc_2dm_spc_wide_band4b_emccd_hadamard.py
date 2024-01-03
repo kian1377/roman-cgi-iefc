@@ -49,8 +49,9 @@ dm2_flat = fits.getdata(cgi_phasec_poppy.data_dir/'dm-acts'/'flatmaps'/'spc_wide
 data_dir = iefc_2dm.iefc_data_dir
 response_dir = data_dir/'response-data'
 
-reload(cgi_phasec_poppy.source_flux)
+''' COMPUTE SOURCE FLUX FROM BLACKBODY '''
 
+reload(cgi_phasec_poppy.source_flux)
 wavelength_c = 825e-9*u.m
 
 nwaves = 3
@@ -82,6 +83,7 @@ for i,flux in enumerate(source_fluxes):
     print(f'\tFlux for wavelength {wavelengths[i]:.3e}: {flux:.3e}')
 print(f'Total flux: {total_flux:.3e}')
 
+''' INITIALIZE RAY ACTORS FOR MONOCHROMATIC PROPAGATION '''
 
 reload(cgi_phasec_poppy.cgi)
 reload(cgi_phasec_poppy.parallelized_cgi)
@@ -102,21 +104,21 @@ for i in range(nwaves):
     actors[i].setattr.remote('wavelength', wavelengths[i])
     actors[i].setattr.remote('source_flux', source_fluxes[i])
 
+''' INITIALIZE EMCCD PARAMETERS AND CREATE EMCCD OBJECT '''
 
 em_gain = 200
-full_well_image=60000.  # e-
-full_well_serial=100000.  # e-
+full_well_image = 60000.  # e-
+full_well_serial = 100000.  # e-
 #status=1,
-dark_current=0.0028  # e-/pix/s
-dark_current=1.5/3600  # e-/pix/s
-cic=0.02  # e-/pix/frame
-read_noise=120.  # e-/pix/frame
-bias=500.  # e-
-qe=0.5
-cr_rate=0.  # hits/cm^2/s
-pixel_pitch=13e-6  # m
-eperdn=1 #7.,
-nbits=16
+dark_current = 8e-4  # e-/pix/s
+cic = 0.01  # e-/pix/frame
+read_noise = 120.  # e-/pix/frame
+bias = 500.  # e-
+qe = 0.5
+cr_rate = 0.  # hits/cm^2/s
+pixel_pitch = 13e-6  # m
+eperdn = 1 #7.,
+nbits = 16
 numel_gain_register=604
 
 emccd = emccd_detect.EMCCDDetect(em_gain=em_gain,
@@ -136,57 +138,60 @@ emccd = emccd_detect.EMCCDDetect(em_gain=em_gain,
                                     meta_path=meta_path
                                     )
 
+''' GENERATE PARALLELIZED CGI MODEL '''
+
 reload(cgi_phasec_poppy.parallelized_cgi)
 mode = cgi_phasec_poppy.parallelized_cgi.ParallelizedCGI(actors=actors, dm1_ref=dm1_flat, dm2_ref=dm2_flat)
 
-mode.use_photon_noise = True
 mode.EMCCD = emccd
-# mode.subtract_bias = True
 
-unocc_exp_time = 0.00001
-unocc_em_gain = 250
+unocc_em_gain = 500
 
 mode.set_actor_attr('use_fpm',False)
 mode.Nframes = 10
-mode.exp_time = unocc_exp_time
 mode.EMCCD.em_gain = unocc_em_gain
 
-ref_unocc_im = mode.snap()
-imshow1(ref_unocc_im, lognorm=True)
+mode.exp_times_list = [0.00001, 0.00005, 0.0001]
 
-mode.set_actor_attr('use_fpm',True)
-mode.Nframes = 10
-mode.exp_time = 0.5
-mode.EMCCD.em_gain = 500
-
-occ_im = mode.snap(quiet=False)
-imshow1(occ_im, lognorm=True)
+raw_im = mode.snap_many()
 
 mode.normalize = True
-mode.Imax_ref = xp.max(ref_unocc_im)
-mode.exp_time_ref = unocc_exp_time
+mode.Imax_ref = xp.max(raw_im.max())
 mode.em_gain_ref = unocc_em_gain
 
-ref_im = mode.snap()
-reload(utils)
+ref_unocc_im = mode.snap_many()
+imshow3(raw_im, ref_unocc_im/mode.norm_factor, ref_unocc_im, 
+        '', '', f'{xp.max(ref_unocc_im):.2f}', lognorm=True,
+        save_fig='test_normalization_image.png')
+
+mode.EMCCD.em_gain = 500
+
+mode.set_actor_attr('use_fpm',True)
+mode.exp_times_list = [0.25,2.5,5]
+mode.Nframes_list = [4, 2, 1]
+ref_im = mode.snap_many(quiet=False,)
+
 control_mask = utils.create_annular_focal_plane_mask(mode, inner_radius=5.4, outer_radius=20.6, edge=None)
 mean_ni = xp.mean(ref_im[control_mask])
 imshow3(ref_im/mode.norm_factor, ref_im, ref_im*control_mask, 
-        'Reference/Initial State', 
+        f'Reference/Initial State: {xp.max(ref_im/mode.norm_factor):.0f}', 
         'Normalized Reference Image',
         f'Mean NI: {mean_ni:.2e}',
         lognorm=True,
         save_fig='test_reference_image.png')
 
 
+''' CREATE THE PROBE AND CALIBRATION MODES '''
+
 probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2,
                                           shift=[(-12,7), (12,7),(0,-14), (0,0)], nprobes=3,
-                                           use_weighting=True,)
+                                           use_weighting=True)
 
 calib_modes = utils.create_hadamard_modes(mode.dm_mask, ndms=2)
 Nmodes = calib_modes.shape[0]
 print(calib_modes.shape)
 
+''' CREATE THE SCALING FACTOR FOR THE CALIBRATION MODES '''
 reload(utils)
 oversamp = 4
 
@@ -215,7 +220,7 @@ biggest_max = xp.max(xp.array(max_vals))
 
 scale_factors = []
 for i in range(calib_modes.shape[0]//2):
-    scale_factors.append((biggest_max/max_vals[i])**(1/4))
+    scale_factors.append((biggest_max/max_vals[i])**(1/3))
     # scale_factors.append(xp.exp(-(biggest_max/max_vals[i]-1)))
 scale_factors = ensure_np_array(xp.array(scale_factors))
 # scale_factors[scale_factors>2] = 2
@@ -224,37 +229,34 @@ scale_factors = ensure_np_array(xp.array(scale_factors))
 scale_factors = np.concatenate([scale_factors,scale_factors])
 print(scale_factors.shape)
 
-mode.normalize = True
-mode.EMCCD.em_gain = 250
-mode.exp_time = 0.2
-mode.Nframes = 5
+''' GENERATE RESPONSE MATRIX '''
 
-calib_amp = 1e-9
-probe_amp = 10e-9
+reload(iefc_2dm)
 
-i = 424
-scaled_calib_amp = scale_factors[i] * calib_amp
-dm_mode = calib_modes[i,:mode.Nact**2].reshape(mode.Nact,mode.Nact)
-mode.add_dm1(scaled_calib_amp*dm_mode)
-differential_images, single_images = iefc_2dm.take_measurement(mode, probe_modes, probe_amp, return_all=True, plot=True)
-ims = 2*scaled_calib_amp*differential_images.reshape(probe_modes.shape[0], mode.npsf, mode.npsf)
-mode.add_dm1(-scaled_calib_amp*dm_mode)
-imshow3(ims[0], ims[1], ims[2], save_fig='test_diff_ims.png')
+mode.reset_dms()
+mode.EMCCD.em_gain = 500
+mode.Nframes = 1
+mode.exp_times_list = np.array([0.01, 0.05, 0.25, 0.5])/2
+mode.Nframes_list = np.array([10, 3, 1, 1])
 
-mode.normalize = True
+total_exp_time = np.sum(mode.exp_times_list*mode.Nframes_list)
+print(f'Total exposure time: {total_exp_time:.2f}s')
+
+calib_amp = 2.5e-9
+probe_amp = 20e-9
+
 response_matrix, response_cube, calib_amps = iefc_2dm.calibrate(mode, 
-                                                                control_mask,
-                                                                probe_amp, probe_modes, 
-                                                                calib_amp, calib_modes, 
-                                                                scale_factors=scale_factors,
-                                                                return_all=True, 
-            #                                                     plot_responses=False,
-                                                            )
+                                                    control_mask,
+                                                    probe_amp, probe_modes, 
+                                                     calib_amp, calib_modes, 
+                                                     scale_factors=scale_factors, 
+                                                     return_all=True, 
+#                                                     plot_responses=False,
+                                                   )
+
 utils.save_fits(response_dir/f'spc_wide_band4b_emccd_response_matrix_{today}.fits', 
                 response_matrix,
-                header={'em_gain':mode.EMCCD.em_gain,
-                        'Nframes':mode.Nframes,
-                        'exp_time':mode.exp_time})
+                header={'em_gain':mode.EMCCD.em_gain,})
 
 # iefc_2dm_spc_wide_band4b_emccd_hadamard.py
 

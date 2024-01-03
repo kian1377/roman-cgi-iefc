@@ -29,12 +29,17 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
         for amp in amps:
             if DM==1:
                 sysi.add_dm1(amp*probe)
-                image = sysi.snap()
+                if sysi.exp_times_list is None:
+                    image = sysi.snap()
+                else:
+                    # print('Using multiple exposure times to stack frames.')
+                    image = sysi.snap_many()
+                # image = sysi.snap() if sysi.exp_times_list is None else sysi.snap_many()
                 images.append(image.flatten())
                 sysi.add_dm1(-amp*probe)
             elif DM==2:
                 sysi.add_dm2(amp*probe)
-                image = sysi.snap()
+                image = sysi.snap() if sysi.exp_times_list is None else sysi.snap_many()
                 images.append(image.flatten())
                 sysi.add_dm2(-amp*probe)
             
@@ -89,12 +94,7 @@ def calibrate(sysi,
             sysi.add_dm2(s * calib_amp * dm2_mode)
             
             # Compute reponse with difference images of probes
-            diff_ims, images = take_measurement(sysi, probe_modes, probe_amplitude, DM=1, return_all=True)
-            # if sysi.EMCCD is not None:
-            #     print(xp.max(images/sysi.norm_factor))
-            #     if xp.max(images/sysi.norm_factor)>((2**sysi.EMCCD.nbits)-10):
-            #         print('Calibration frames are saturated. Reducing calibration amplitude and trying again. ')
-            #         calib_amp -= 1e-9
+            diff_ims = take_measurement(sysi, probe_modes, probe_amplitude, DM=1)
             calib_amps.append(calib_amp)
             response += s * diff_ims / (2 * calib_amp)
             
@@ -102,8 +102,9 @@ def calibrate(sysi,
             sysi.add_dm1(-s * calib_amp * dm1_mode) # remove the mode
             sysi.add_dm2(-s * calib_amp * dm2_mode) 
         
-        print("\tCalibrated mode {:d}/{:d} in {:.3f}s".format(ci+1, calibration_modes.shape[0], time.time()-start), end='')
-        print("\r", end="")
+        print(f"\tCalibrated mode {ci+1:d}/{calibration_modes.shape[0]:d} in {time.time()-start:.3f}s")
+        print(f'\t\tScale Factor = {scale_factors[ci]:.2f}, Calibration amplitude = {calib_amp:.2e}m')
+        # print('\r\r', end='')
         
         if probe_modes.shape[0]==2:
             response_matrix.append( xp.concatenate([response[0, control_mask.ravel()],
@@ -253,7 +254,7 @@ def run(sysi,
                 sysi.Nframes = metric_nframes
             if metric_em_gain is not None:
                 sysi.EMCCD.em_gain = metric_em_gain
-            best_image = sysi.snap()
+            best_image = sysi.snap() if sysi.exp_times_list is None else sysi.snap_many()
 
             mean_ni = xp.mean(best_image.ravel()[control_mask.ravel()])
 
@@ -279,7 +280,8 @@ def run(sysi,
                 sysi.set_dm2(dm2_ref + dm2_command_per_reg[j])
                 
                 # Take an image to estimate the metrics
-                image_per_reg[j] = copy.copy(sysi.snap())
+                new_image = sysi.snap() if sysi.exp_times_list is None else sysi.snap_many()
+                image_per_reg[j] = copy.copy(new_image)
                 # print(xp.mean(image_per_reg[j][control_mask]))
                 mean_nis[j] = xp.mean(image_per_reg[j][control_mask])
 
@@ -298,7 +300,6 @@ def run(sysi,
             best_dm2_command = dm2_ref + best_del_dm2
             sysi.set_dm1(best_dm1_command)
             sysi.set_dm2(best_dm2_command)
-            best_image = sysi.snap()
             regs.append(best_reg)
 
         metric_images.append(copy.copy(best_image))
