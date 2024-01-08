@@ -71,6 +71,7 @@ def run_efc_perfect(sysi,
                     control_mask, 
                     est_fun=None, 
                     est_params=None, 
+                    nonlin_model=None,
                     Imax_unocc=1,
                     loop_gain=0.5, 
                     leakage=0.0,
@@ -156,7 +157,7 @@ def run_efc_perfect(sysi,
         # mean_ni = xp.mean(image.ravel()[control_mask.ravel()])
         # print(f'\tMean NI of this iteration: {mean_ni:.3e}')
 
-        if np.isscalar(reg_conds):
+        if nonlin_model is None or np.isscalar(reg_conds):
             control_matrix = reg_fun(response_matrix, reg_conds)
             modal_coefficients = -control_matrix.dot( efield_ri)
             command = (1.0-leakage)*command + loop_gain*modal_coefficients
@@ -175,9 +176,12 @@ def run_efc_perfect(sysi,
 
             regs.append(reg_conds)
         else:
+            print('\t\tUsing nonlinear coronagraph model to predict best regularization parameter')
+            print(f'\t\tRegularization values: ', reg_conds)
+
             mean_nis = xp.zeros(len(reg_conds))
-            dm1_command_per_reg = np.zeros((len(reg_conds), sysi.Nact, sysi.Nact))
-            dm2_command_per_reg = np.zeros((len(reg_conds), sysi.Nact, sysi.Nact))
+            del_dm1_per_reg = np.zeros((len(reg_conds), sysi.Nact, sysi.Nact))
+            del_dm2_per_reg= np.zeros((len(reg_conds), sysi.Nact, sysi.Nact))
             image_per_reg = xp.zeros((len(reg_conds), sysi.npsf, sysi.npsf))
             command_per_reg = xp.zeros((len(reg_conds), response_matrix.shape[1]))
             for j in range(len(reg_conds)): # compute the control matrix for a range of regularization parameters and use the best one
@@ -187,33 +191,41 @@ def run_efc_perfect(sysi,
                 command_per_reg[j] = (1.0-leakage)*command + loop_gain*modal_coefficients
                 
                 act_commands = calibration_modes.T.dot(utils.ensure_np_array(command_per_reg[j]))
-                dm1_command_per_reg[j] = act_commands[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
-                dm2_command_per_reg[j] = act_commands[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
+                del_dm1_per_reg[j] = act_commands[:sysi.Nact**2].reshape(sysi.Nact,sysi.Nact)
+                del_dm2_per_reg[j] = act_commands[sysi.Nact**2:].reshape(sysi.Nact,sysi.Nact)
                 
                 # Set the current DM state
-                sysi.set_dm1(dm1_ref + dm1_command_per_reg[j])
-                sysi.set_dm2(dm2_ref + dm2_command_per_reg[j])
+                # sysi.set_dm1(dm1_ref + dm1_command_per_reg[j])
+                # sysi.set_dm2(dm2_ref + dm2_command_per_reg[j])
+                nonlin_model.add_dm1(del_dm1_per_reg[j])
+                nonlin_model.add_dm2(del_dm2_per_reg[j])
                 
-                # Take an image to estimate the metrics
-                image_per_reg[j] = copy.copy(sysi.snap())
+                # Take an image to estimate the metrics with the nonlinear model
+                # image_per_reg[j] = copy.copy(sysi.snap())
+                image_per_reg[j] = copy.copy(nonlin_model.snap())
                 # print(xp.mean(image_per_reg[j][control_mask]))
                 mean_nis[j] = xp.mean(image_per_reg[j][control_mask])
+
+                nonlin_model.add_dm1(-del_dm1_per_reg[j])
+                nonlin_model.add_dm2(-del_dm2_per_reg[j])
 
             # print(mean_nis)
             j_min = ensure_np_array(np.argmin(mean_nis))
             best_reg = reg_conds[j_min]
-            print(f'\tBest regularization parameter is {best_reg:f}')
+            print(f'\t\tBest regularization parameter is {best_reg:f}')
             # print('Mean NIs: ', mean_nis)
             mean_ni = mean_nis[j_min]
             command = command_per_reg[j_min]
-            best_del_dm1 = dm1_command_per_reg[j_min]
-            best_del_dm2 = dm2_command_per_reg[j_min]
+            best_del_dm1 = del_dm1_per_reg[j_min]
+            best_del_dm2 = del_dm2_per_reg[j_min]
             best_image = image_per_reg[j_min]
 
             best_dm1_command = dm1_ref + best_del_dm1
             best_dm2_command = dm2_ref + best_del_dm2
             sysi.set_dm1(best_dm1_command)
             sysi.set_dm2(best_dm2_command)
+            nonlin_model.set_dm1(best_dm1_command)
+            nonlin_model.set_dm2(best_dm2_command)
             best_image = sysi.snap()
             regs.append(best_reg)
 

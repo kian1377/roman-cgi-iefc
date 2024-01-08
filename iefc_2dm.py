@@ -206,13 +206,24 @@ def run(sysi,
         # delta_coefficients = single_iteration(sysi, probe_modes, probe_amplitude, control_matrix, control_mask)
         # Take a measurement
         if probe_exp_time is not None:
-            sysi.exp_time = probe_exp_time
+            if np.isscalar(probe_exp_time):
+                sysi.exp_time = probe_exp_time
+                sysi.exp_times_list = None
+            else:
+                sysi.exp_times_list = probe_exp_time
         if probe_nframes is not None:
-            sysi.Nframes = probe_nframes
+            if np.isscalar(probe_nframes):
+                sysi.Nframes = probe_nframes
+                sysi.Nframes_list = None
+            else:
+                sysi.Nframes_list = probe_nframes
         if probe_em_gain is not None:
             sysi.EMCCD.em_gain = probe_em_gain
+        sysi.subtract_bias = False
         differential_images = take_measurement(sysi, probe_modes, probe_amplitude, plot=plot_probes)
         measurement_vector = differential_images[:, control_mask.ravel()].ravel()
+        print(xp.max(xp.isnan(measurement_vector)))
+        measurement_vector[xp.isnan(measurement_vector)] = 0.0
         # modal_coefficients = -control_matrix.dot( measurement_vector )
 
         # command = (1.0-leakage)*command + loop_gain*modal_coefficients
@@ -249,14 +260,24 @@ def run(sysi,
             sysi.set_dm2(best_dm2_command)
 
             if metric_exp_time is not None:
-                sysi.exp_time = metric_exp_time
+                if np.isscalar(metric_exp_time):
+                    sysi.exp_time = metric_exp_time
+                    sysi.exp_times_list = None
+                else:
+                    sysi.exp_times_list = metric_exp_time
             if metric_nframes is not None:
-                sysi.Nframes = metric_nframes
+                if np.isscalar(metric_nframes):
+                    sysi.Nframes = metric_nframes
+                    sysi.Nframes_list = None
+                else:
+                    sysi.Nframes_list = metric_nframes
             if metric_em_gain is not None:
                 sysi.EMCCD.em_gain = metric_em_gain
+            sysi.subtract_bias = True
             best_image = sysi.snap() if sysi.exp_times_list is None else sysi.snap_many()
-
-            mean_ni = xp.mean(best_image.ravel()[control_mask.ravel()])
+            best_image = xp.abs(best_image)
+            print(xp.max(xp.isnan(best_image)))
+            mean_ni = xp.mean(xp.abs(best_image.ravel()[control_mask.ravel()]))
 
             regs.append(reg_conds)
         else:
