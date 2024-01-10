@@ -11,8 +11,11 @@ import astropy.units as u
 from astropy.io import fits
 from matplotlib.patches import Rectangle, Circle
 from pathlib import Path
+import copy 
+
 from IPython.display import clear_output, display, HTML
 display(HTML("<style>.container { width:90% !important; }</style>")) # just making the notebook cells wider
+
 from datetime import datetime
 today = int(datetime.today().strftime('%Y%m%d'))
 
@@ -43,9 +46,29 @@ from imshows import *
 data_dir = iefc_2dm.iefc_data_dir
 response_dir = data_dir/'response-data'
 
+dm1_flat = fits.getdata('../spc_wide_band4_flattened_dm1.fits')
+dm2_flat = fits.getdata('../spc_wide_band4_flattened_dm2.fits')
+
 mode = cgi_phasec_poppy.cgi.CGI(cgi_mode='spc-wide', npsf=150,
                                   use_pupil_defocus=True, 
-                                  use_opds=True)
+                                  use_opds=True,
+                                  dm1_ref=dm1_flat, dm2_ref=dm2_flat,
+                                  dm1_shift=np.array([0.00011,0]),
+                                  dm2_shift=np.array([-0.00011,0]),
+                                #   dm1_rot = 0.1,
+                                #   dm2_rot = -0.1,
+                                  )
+
+mode.exp_times_list = None
+
+# perturb model by slightly shifting the SPM
+original_spm = copy.copy(mode.SPM.amplitude)
+spm_amp = mode.SPM.amplitude
+mode.SPM.amplitude = _scipy.ndimage.shift(spm_amp, (5,0))
+imshow3(original_spm, mode.SPM.amplitude, original_spm-mode.SPM.amplitude,
+        'Original SPM', 'Shifted SPM','Difference', 
+        save_fig='spm_shift.png')
+
 mode.use_fpm = False
 ref_unocc_im = mode.snap()
 imshow1(ref_unocc_im, pxscl=mode.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True)
@@ -57,15 +80,6 @@ ref_im = mode.snap()
 imshow1(ref_im, 'SPC-WFOV Initial Coronagraphic Image\nfor iEFC',
         pxscl=mode.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True, vmin=1e-11)
 
-# apply shaped-pupil-mask decenter
-imshow1(mode.SPM.amplitude)
-spm_amp = mode.SPM.amplitude
-mode.SPM.amplitude = _scipy.ndimage.shift(spm_amp, (5,0))
-imshow1(mode.SPM.amplitude)
-
-ref_im_errors = mode.snap()
-imshow1(ref_im - ref_im_errors, save_fig='diff_from_nominal.png')
-
 reload(utils)
 control_mask = utils.create_annular_focal_plane_mask(mode, inner_radius=5.4, outer_radius=20.6, edge=None, plot=True)
 
@@ -74,30 +88,30 @@ mean_ni = xp.mean(ref_im[control_mask])
 print(mean_ni)
 
 reload(utils)
-probe_amp = 2.5e-8
+probe_amp = 20e-9
 # probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2, shift=[(-12,6), (12,6), (0,-12)], nprobes=3, plot=True)
 # probe_modes = utils.create_poke_probes([(10,34), (38,34), (24,10)], plot=True)
 probe_modes = utils.create_poke_probes([(11,31), (36,31), (23,9)], plot=True)
 imshow3(probe_modes[0], probe_modes[1], probe_modes[2], save_fig='test_probes.png')
 utils.save_fits(response_dir/f'spc_wide_825_poke_mode_probes_{today}.fits', probe_modes)
 
-calib_amp = 10e-9
+calib_amp = 5e-9
 calib_modes = utils.create_hadamard_modes(mode.dm_mask, ndms=2)
 print(calib_modes.shape)
 
-response_matrix, response_cube = iefc_2dm.calibrate(mode, 
-                                                    control_mask,
-                                                    probe_amp, probe_modes, 
-                                                     calib_amp, calib_modes, 
-                                                     return_all=True, 
-#                                                     plot_responses=False,
-                                                   )
+response_matrix, response_cube, calib_amps = iefc_2dm.calibrate(mode, 
+                                                                control_mask,
+                                                                probe_amp, probe_modes, 
+                                                                calib_amp, calib_modes, 
+                                                                return_all=True, 
+                                                                # plot_responses=False,
+                                                                )
 
 
 utils.save_fits(response_dir/f'spc_wide_825_had_modes_perturbed_response_matrix_{today}.fits', response_matrix)
 # utils.save_fits(response_dir/f'spc_wide_825_had_modes_response_cube_{today}.fits', response_cube)
 
-
+# iefc_2dm_spc_wide_825_had_modes.py
 
 
 

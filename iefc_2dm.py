@@ -103,7 +103,8 @@ def calibrate(sysi,
             sysi.add_dm2(-s * calib_amp * dm2_mode) 
         
         print(f"\tCalibrated mode {ci+1:d}/{calibration_modes.shape[0]:d} in {time.time()-start:.3f}s")
-        print(f'\t\tScale Factor = {scale_factors[ci]:.2f}, Calibration amplitude = {calib_amp:.2e}m')
+        if scale_factors is not None:
+            print(f'\t\tScale Factor = {scale_factors[ci]:.2f}, Calibration amplitude = {calib_amp:.2e}m')
         # print('\r\r', end='')
         
         if probe_modes.shape[0]==2:
