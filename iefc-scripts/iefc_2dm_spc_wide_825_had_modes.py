@@ -53,21 +53,21 @@ mode = cgi_phasec_poppy.cgi.CGI(cgi_mode='spc-wide', npsf=150,
                                   use_pupil_defocus=True, 
                                   use_opds=True,
                                   dm1_ref=dm1_flat, dm2_ref=dm2_flat,
-                                  dm1_shift=np.array([0.00011,0]),
-                                  dm2_shift=np.array([-0.00011,0]),
+                                #   dm1_shift=np.array([0.00011,0]),
+                                #   dm2_shift=np.array([-0.00011,0]),
                                 #   dm1_rot = 0.1,
                                 #   dm2_rot = -0.1,
                                   )
 
 mode.exp_times_list = None
 
-# perturb model by slightly shifting the SPM
-original_spm = copy.copy(mode.SPM.amplitude)
-spm_amp = mode.SPM.amplitude
-mode.SPM.amplitude = _scipy.ndimage.shift(spm_amp, (5,0))
-imshow3(original_spm, mode.SPM.amplitude, original_spm-mode.SPM.amplitude,
-        'Original SPM', 'Shifted SPM','Difference', 
-        save_fig='spm_shift.png')
+# # perturb model by slightly shifting the SPM
+# original_spm = copy.copy(mode.SPM.amplitude)
+# spm_amp = mode.SPM.amplitude
+# mode.SPM.amplitude = _scipy.ndimage.shift(spm_amp, (5,0))
+# imshow3(original_spm, mode.SPM.amplitude, original_spm-mode.SPM.amplitude,
+#         'Original SPM', 'Shifted SPM','Difference', 
+#         save_fig='spm_shift.png')
 
 mode.use_fpm = False
 ref_unocc_im = mode.snap()
@@ -108,7 +108,8 @@ response_matrix, response_cube, calib_amps = iefc_2dm.calibrate(mode,
                                                                 )
 
 
-utils.save_fits(response_dir/f'spc_wide_825_had_modes_perturbed_response_matrix_{today}.fits', response_matrix)
+utils.save_fits(response_dir/f'spc_wide_825_had_modes_response_matrix_{today}.fits', response_matrix)
+# utils.save_fits(response_dir/f'spc_wide_825_had_modes_perturbed_response_matrix_{today}.fits', response_matrix)
 # utils.save_fits(response_dir/f'spc_wide_825_had_modes_response_cube_{today}.fits', response_cube)
 
 # iefc_2dm_spc_wide_825_had_modes.py

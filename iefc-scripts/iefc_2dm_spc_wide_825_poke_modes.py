@@ -39,10 +39,15 @@ from imshows import *
 data_dir = iefc_2dm.iefc_data_dir
 response_dir = data_dir/'response-data'
 
+dm1_flat = fits.getdata(cgi_phasec_poppy.data_dir/'dm-acts'/'flatmaps'/'spc_wide_band4_flattened_dm1.fits')
+dm2_flat = fits.getdata(cgi_phasec_poppy.data_dir/'dm-acts'/'flatmaps'/'spc_wide_band4_flattened_dm2.fits')
 
 mode = cgi_phasec_poppy.cgi.CGI(cgi_mode='spc-wide', npsf=150,
-                                  use_pupil_defocus=True, 
-                                  use_opds=True)
+                                use_pupil_defocus=True, 
+                                use_opds=True,
+                                dm1_ref=dm1_flat, dm2_ref=dm2_flat,
+                                )
+
 mode.use_fpm = False
 ref_unocc_im = mode.snap()
 imshow1(ref_unocc_im, pxscl=mode.psf_pixelscale_lamD, xlabel='$\lambda/D$', lognorm=True)
@@ -75,13 +80,14 @@ Nmodes = calib_modes.shape[0]
 print(calib_modes.shape)
 
 reload(iefc_2dm)
-response_matrix, response_cube = iefc_2dm.calibrate(mode, 
-                                                    control_mask,
-                                                    probe_amp, probe_modes, 
-                                                     calib_amp, calib_modes, 
-                                                     return_all=True, 
-#                                                     plot_responses=False,
-                                                   )
+mode.exp_times_list = None
+response_matrix, response_cube, calib_amps = iefc_2dm.calibrate(mode, 
+                                                                control_mask,
+                                                                probe_amp, probe_modes, 
+                                                                calib_amp, calib_modes, 
+                                                                return_all=True, 
+                #                                                     plot_responses=False,
+                                                                )
 
 
 utils.save_fits(response_dir/f'spc_wide_825_poke_modes_response_matrix_{today}.fits', response_matrix)
@@ -89,7 +95,7 @@ utils.save_fits(response_dir/f'spc_wide_825_poke_modes_response_cube_{today}.fit
 
 
 
-
+# iefc_2dm_spc_wide_825_poke_modes.py
 
 
 

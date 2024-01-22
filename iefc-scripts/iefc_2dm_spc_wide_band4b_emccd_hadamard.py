@@ -243,6 +243,7 @@ total_exp_time = np.sum(mode.exp_times_list*mode.Nframes_list)
 print(f'Total exposure time: {total_exp_time:.2f}s')
 
 calib_amp = 2.5e-9
+calib_amp = 4e-9
 probe_amp = 20e-9
 
 response_matrix, response_cube, calib_amps = iefc_2dm.calibrate(mode, 
