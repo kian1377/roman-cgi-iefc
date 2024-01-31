@@ -45,7 +45,12 @@ response_dir = data_dir/'response-data'
 mode = cgi_phasec_poppy.cgi.CGI(cgi_mode='spc-wide', npsf=150,
                                   use_pupil_defocus=True, 
                                   use_opds=True,
-                                  dm1_ref=dm1_flat, dm2_ref=dm2_flat,
+                                  dm1_ref=2*dm1_flat, 
+                                  # dm2_ref=dm2_flat,
+                                #   dm1_shift=np.array([0.00011,0]),
+                                #   dm2_shift=np.array([-0.00011,0]),
+                                #   dm1_rot = 0.1,
+                                #   dm2_rot = -0.1,
                                   )
 mode.use_fpm = False
 ref_unocc_im = mode.snap()
@@ -66,14 +71,18 @@ mean_ni = xp.mean(ref_im[control_mask])
 print(mean_ni)
 
 reload(utils)
-probe_amp = 2.5e-8
+probe_amp = 20e-9
 # probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2, shift=[(-12,6), (12,6), (0,-12)], nprobes=3, plot=True)
 # probe_modes = utils.create_poke_probes([(10,34), (38,34), (24,10)], plot=True)
-probe_modes = utils.create_poke_probes([(11,31), (36,31), (23,9)], plot=True)
-imshow3(probe_modes[0], probe_modes[1], probe_modes[2], save_fig='test_probes.png')
-utils.save_fits(response_dir/f'spc_wide_825_poke_mode_probes_{today}.fits', probe_modes)
+# probe_modes = utils.create_poke_probes([(11,31), (36,31), (23,9)], plot=True)
+probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.25,
+                                          shift=[(-12,7), (12,7),(0,-14), (0,0)], nprobes=3,
+                                          use_weighting=True)
 
-fourier_mask = utils.create_annular_focal_plane_mask(mode, inner_radius=0.5, outer_radius=23, edge=0, plot=True)
+imshow3(probe_modes[0], probe_modes[1], probe_modes[2], save_fig='test_probes.png')
+# utils.save_fits(response_dir/f'spc_wide_825_poke_mode_probes_{today}.fits', probe_modes)
+
+fourier_mask = utils.create_annular_focal_plane_mask(mode, inner_radius=1, outer_radius=23, edge=0, plot=True)
 calib_modes = utils.create_fourier_modes(mode, fourier_mask, fourier_sampling=1, ndms=2)
 Nfourier = calib_modes.shape[0]//2
 print(calib_modes.shape)
@@ -83,15 +92,15 @@ imshow2(calib_modes[i,:mode.Nact**2].reshape(mode.Nact,mode.Nact),
         save_fig='test_fourier_modes.png')
 
 
-calib_amp = 10e-9
-
-response_matrix, response_cube = iefc_2dm.calibrate(mode, 
-                                                    control_mask,
-                                                    probe_amp, probe_modes, 
-                                                     calib_amp, calib_modes, 
-                                                     return_all=True, 
-#                                                     plot_responses=False,
-                                                   )
+calib_amp = 5e-9
+mode.exp_times_list = None
+response_matrix, response_cube, calib_amps = iefc_2dm.calibrate(mode, 
+                                                                control_mask,
+                                                                probe_amp, probe_modes, 
+                                                                calib_amp, calib_modes, 
+                                                                return_all=True, 
+                #                                                     plot_responses=False,
+                                                                )
 
 
 utils.save_fits(response_dir/f'spc_wide_825_fourier_modes_response_matrix_{today}.fits', response_matrix)

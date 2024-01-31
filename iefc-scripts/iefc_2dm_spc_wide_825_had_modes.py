@@ -52,7 +52,8 @@ dm2_flat = fits.getdata('../spc_wide_band4_flattened_dm2.fits')
 mode = cgi_phasec_poppy.cgi.CGI(cgi_mode='spc-wide', npsf=150,
                                   use_pupil_defocus=True, 
                                   use_opds=True,
-                                  dm1_ref=dm1_flat, dm2_ref=dm2_flat,
+                                  dm1_ref=2*dm1_flat, 
+                                  # dm2_ref=dm2_flat,
                                 #   dm1_shift=np.array([0.00011,0]),
                                 #   dm2_shift=np.array([-0.00011,0]),
                                 #   dm1_rot = 0.1,
@@ -91,7 +92,11 @@ reload(utils)
 probe_amp = 20e-9
 # probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2, shift=[(-12,6), (12,6), (0,-12)], nprobes=3, plot=True)
 # probe_modes = utils.create_poke_probes([(10,34), (38,34), (24,10)], plot=True)
-probe_modes = utils.create_poke_probes([(11,31), (36,31), (23,9)], plot=True)
+# probe_modes = utils.create_poke_probes([(11,31), (36,31), (23,9)], plot=True)
+probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.25,
+                                          shift=[(-12,7), (12,7),(0,-14), (0,0)], nprobes=3,
+                                          use_weighting=True)
+
 imshow3(probe_modes[0], probe_modes[1], probe_modes[2], save_fig='test_probes.png')
 utils.save_fits(response_dir/f'spc_wide_825_poke_mode_probes_{today}.fits', probe_modes)
 

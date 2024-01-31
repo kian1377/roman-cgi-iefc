@@ -160,7 +160,7 @@ mode.Imax_ref = xp.max(raw_im.max())
 mode.em_gain_ref = unocc_em_gain
 
 ref_unocc_im = mode.snap_many()
-imshow3(raw_im, ref_unocc_im/mode.norm_factor, ref_unocc_im, 
+imshow3(raw_im, ref_unocc_im*mode.Imax_ref, ref_unocc_im, 
         '', '', f'{xp.max(ref_unocc_im):.2f}', lognorm=True,
         save_fig='test_normalization_image.png')
 
@@ -173,8 +173,8 @@ ref_im = mode.snap_many(quiet=False,)
 
 control_mask = utils.create_annular_focal_plane_mask(mode, inner_radius=5.4, outer_radius=20.6, edge=None)
 mean_ni = xp.mean(ref_im[control_mask])
-imshow3(ref_im/mode.norm_factor, ref_im, ref_im*control_mask, 
-        f'Reference/Initial State: {xp.max(ref_im/mode.norm_factor):.0f}', 
+imshow3(ref_im*mode.Imax_ref, ref_im, ref_im*control_mask, 
+        f'Reference/Initial State: {xp.max(ref_im*mode.Imax_ref):.0f}', 
         'Normalized Reference Image',
         f'Mean NI: {mean_ni:.2e}',
         lognorm=True,
@@ -234,16 +234,25 @@ print(scale_factors.shape)
 reload(iefc_2dm)
 
 mode.reset_dms()
-mode.EMCCD.em_gain = 500
-mode.Nframes = 1
-mode.exp_times_list = np.array([0.01, 0.05, 0.25, 0.5])/2
-mode.Nframes_list = np.array([10, 3, 1, 1])
+# mode.EMCCD.em_gain = 500
+# mode.Nframes = 1
+# mode.exp_times_list = np.array([0.01, 0.05, 0.25, 0.5])/2
+# mode.Nframes_list = np.array([10, 3, 1, 1])
+
+mode.exp_times_list = np.array([0.01, 0.1, 1])
+mode.gain_list = [150, 750, 750]
+mode.Nframes_list = np.array([10, 9, 1])
+
+# mode.exp_times_list = np.array([0.01, 0.1, 0.2, 0.5])
+# mode.gain_list = [150, 750, 750, 750]
+# mode.Nframes_list = np.array([10, 1, 4, 2])
 
 total_exp_time = np.sum(mode.exp_times_list*mode.Nframes_list)
 print(f'Total exposure time: {total_exp_time:.2f}s')
 
-calib_amp = 2.5e-9
-calib_amp = 4e-9
+# calib_amp = 2.5e-9
+# calib_amp = 4e-9
+calib_amp = 5e-9
 probe_amp = 20e-9
 
 response_matrix, response_cube, calib_amps = iefc_2dm.calibrate(mode, 
