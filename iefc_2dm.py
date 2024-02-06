@@ -200,7 +200,7 @@ def run(sysi,
         starting_iteration = 0
     else:
         starting_iteration = len(old_images) - 1
-        
+    sysi.gain_list = None
     for i in range(num_iterations):
         print(f"\tClosed-loop iteration {i+1+starting_iteration} / {num_iterations+starting_iteration}")
         

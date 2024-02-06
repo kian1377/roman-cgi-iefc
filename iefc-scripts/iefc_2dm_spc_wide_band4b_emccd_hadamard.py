@@ -141,7 +141,10 @@ emccd = emccd_detect.EMCCDDetect(em_gain=em_gain,
 ''' GENERATE PARALLELIZED CGI MODEL '''
 
 reload(cgi_phasec_poppy.parallelized_cgi)
-mode = cgi_phasec_poppy.parallelized_cgi.ParallelizedCGI(actors=actors, dm1_ref=dm1_flat, dm2_ref=dm2_flat)
+mode = cgi_phasec_poppy.parallelized_cgi.ParallelizedCGI(actors=actors, 
+                                                         dm1_ref=2*dm1_flat,
+                                                        #  dm2_ref=dm2_flat,
+                                                         )
 
 mode.EMCCD = emccd
 
@@ -239,13 +242,17 @@ mode.reset_dms()
 # mode.exp_times_list = np.array([0.01, 0.05, 0.25, 0.5])/2
 # mode.Nframes_list = np.array([10, 3, 1, 1])
 
-mode.exp_times_list = np.array([0.01, 0.1, 1])
-mode.gain_list = [150, 750, 750]
-mode.Nframes_list = np.array([10, 9, 1])
+# mode.exp_times_list = np.array([0.01, 0.1, 1])
+# mode.gain_list = [150, 750, 750]
+# mode.Nframes_list = np.array([10, 9, 1])
 
 # mode.exp_times_list = np.array([0.01, 0.1, 0.2, 0.5])
 # mode.gain_list = [150, 750, 750, 750]
 # mode.Nframes_list = np.array([10, 1, 4, 2])
+
+mode.gain_list = [150, 750]
+mode.exp_times_list = np.array([0.01, 0.1])
+mode.Nframes_list = np.array([10, 4])
 
 total_exp_time = np.sum(mode.exp_times_list*mode.Nframes_list)
 print(f'Total exposure time: {total_exp_time:.2f}s')
