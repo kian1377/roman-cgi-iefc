@@ -82,7 +82,8 @@ probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0
 imshow3(probe_modes[0], probe_modes[1], probe_modes[2], save_fig='test_probes.png')
 # utils.save_fits(response_dir/f'spc_wide_825_poke_mode_probes_{today}.fits', probe_modes)
 
-fourier_mask = utils.create_annular_focal_plane_mask(mode, inner_radius=1, outer_radius=23, edge=0, plot=True)
+fourier_mask = utils.create_annular_focal_plane_mask(mode, inner_radius=5.4, outer_radius=20.6, edge=0, plot=True)
+# fourier_mask = utils.create_annular_focal_plane_mask(mode, inner_radius=1, outer_radius=23, edge=0, plot=True)
 calib_modes = utils.create_fourier_modes(mode, fourier_mask, fourier_sampling=1, ndms=2)
 Nfourier = calib_modes.shape[0]//2
 print(calib_modes.shape)

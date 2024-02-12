@@ -52,7 +52,7 @@ dm2_flat = fits.getdata('../spc_wide_band4_flattened_dm2.fits')
 mode = cgi_phasec_poppy.cgi.CGI(cgi_mode='spc-wide', npsf=150,
                                   use_pupil_defocus=True, 
                                   use_opds=True,
-                                  dm1_ref=2*dm1_flat, 
+                                #   dm1_ref=2*dm1_flat, 
                                   # dm2_ref=dm2_flat,
                                 #   dm1_shift=np.array([0.00011,0]),
                                 #   dm2_shift=np.array([-0.00011,0]),
@@ -63,12 +63,12 @@ mode = cgi_phasec_poppy.cgi.CGI(cgi_mode='spc-wide', npsf=150,
 mode.exp_times_list = None
 
 # # perturb model by slightly shifting the SPM
-original_spm = copy.copy(mode.SPM.amplitude)
-spm_amp = mode.SPM.amplitude
-mode.SPM.amplitude = _scipy.ndimage.shift(spm_amp, (5,0))
-imshow3(original_spm, mode.SPM.amplitude, original_spm-mode.SPM.amplitude,
-        'Original SPM', 'Shifted SPM','Difference', 
-        save_fig='spm_shift.png')
+# original_spm = copy.copy(mode.SPM.amplitude)
+# spm_amp = mode.SPM.amplitude
+# mode.SPM.amplitude = _scipy.ndimage.shift(spm_amp, (5,0))
+# imshow3(original_spm, mode.SPM.amplitude, original_spm-mode.SPM.amplitude,
+#         'Original SPM', 'Shifted SPM','Difference', 
+#         save_fig='spm_shift.png')
 
 mode.use_fpm = False
 ref_unocc_im = mode.snap()
@@ -92,17 +92,30 @@ reload(utils)
 probe_amp = 20e-9
 # probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.2, shift=[(-12,6), (12,6), (0,-12)], nprobes=3, plot=True)
 # probe_modes = utils.create_poke_probes([(10,34), (38,34), (24,10)], plot=True)
-# probe_modes = utils.create_poke_probes([(11,31), (36,31), (23,9)], plot=True)
-probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.25,
-                                          shift=[(-12,7), (12,7),(0,-14), (0,0)], nprobes=3,
-                                          use_weighting=True)
+probe_modes = utils.create_poke_probes([(11,31), (36,31), (23,9)], plot=True)
+# probe_modes = utils.create_fourier_probes(mode, control_mask, fourier_sampling=0.25,
+#                                           shift=[(-12,7), (12,7),(0,-14), (0,0)], nprobes=3,
+#                                           use_weighting=True)
 
 imshow3(probe_modes[0], probe_modes[1], probe_modes[2], save_fig='test_probes.png')
 utils.save_fits(response_dir/f'spc_wide_825_poke_mode_probes_{today}.fits', probe_modes)
 
 calib_amp = 5e-9
 calib_modes = utils.create_hadamard_modes(mode.dm_mask, ndms=2)
-print(calib_modes.shape)
+
+# date = 20240129
+# response_matrix = xp.array(fits.getdata(response_dir/f'spc_wide_825_had_modes_response_matrix_{date}.fits'))
+# dm_response = xp.sqrt(xp.mean(response_matrix.dot(xp.array(calib_modes))**2, axis=0))
+# dm1_response = dm_response[:mode.Nact**2].reshape(mode.Nact, mode.Nact)/dm_response.max()
+# dm2_response = dm_response[mode.Nact**2:].reshape(mode.Nact, mode.Nact)/dm_response.max()
+# print(dm_response.max())
+# imshow2(dm1_response, dm2_response, 
+#         'RMS Response of DM1\nActuators with Hadamard Modes', 'RMS Response of DM2\nActuators with Hadamard Modes',
+#         lognorm=True, vmin1=0.01, vmin2=0.01,
+#         )
+# dm_mask = dm1_response>9e-2
+# calib_modes = utils.create_hadamard_modes(ensure_np_array(dm_mask), ndms=2)
+# print(calib_modes.shape)
 
 response_matrix, response_cube, calib_amps = iefc_2dm.calibrate(mode, 
                                                                 control_mask,
@@ -114,7 +127,8 @@ response_matrix, response_cube, calib_amps = iefc_2dm.calibrate(mode,
 
 
 # utils.save_fits(response_dir/f'spc_wide_825_had_modes_response_matrix_{today}.fits', response_matrix)
-utils.save_fits(response_dir/f'spc_wide_825_had_modes_perturbed_response_matrix_{today}.fits', response_matrix)
+utils.save_fits(response_dir/f'spc_wide_825_had_modes_poke_response_matrix_{today}.fits', response_matrix)
+# utils.save_fits(response_dir/f'spc_wide_825_had_modes_perturbed_response_matrix_{today}.fits', response_matrix)
 # utils.save_fits(response_dir/f'spc_wide_825_had_modes_response_cube_{today}.fits', response_cube)
 
 # iefc_2dm_spc_wide_825_had_modes.py
