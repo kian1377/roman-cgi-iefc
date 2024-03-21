@@ -10,7 +10,8 @@ from IPython.display import display, clear_output
 
 from pathlib import Path
 # iefc_data_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
-iefc_data_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
+# iefc_data_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
+iefc_data_dir = Path('/npool/nvme/kianmilani/roman-cgi-iefc-data')
 
 # def take_measurement(system_interface, probe_cube, probe_amplitude, return_all=False, pca_modes=None):
 def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, pca_modes=None, plot=False):
@@ -175,6 +176,7 @@ def run(sysi,
         old_dm1_commands=None,
         old_dm2_commands=None,
         old_regs=None,
+        weight_map=None, 
        ):
     
     print('Running iEFC...')
@@ -246,6 +248,11 @@ def run(sysi,
 
         if np.isscalar(reg_conds):
             control_matrix = reg_fun(response_matrix, reg_conds)
+            # control_matrix = utils.WeightedLeastSquares(response_matrix, 
+            #                                             weight_map, 
+            #                                             algorithm='iefc', 
+            #                                             nprobes=3, 
+            #                                             rcond=reg_conds)
             modal_coefficients = -control_matrix.dot( measurement_vector )
             command = (1.0-leakage)*command + loop_gain*modal_coefficients
 

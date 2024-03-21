@@ -164,7 +164,8 @@ def imshow2(arr1, arr2,
     cax = divider.append_axes("right", size="4%", pad=0.075)
     cbar = fig.colorbar(im, cax=cax)
     cbar.ax.set_ylabel(cbar1_label, 
-                    #    rotation=270, labelpad=12,
+                       rotation=0,
+                       labelpad=0,
                        )
 
     
@@ -184,7 +185,10 @@ def imshow2(arr1, arr2,
     divider = make_axes_locatable(ax[1])
     cax = divider.append_axes("right", size="4%", pad=0.075)
     cbar = fig.colorbar(im, cax=cax)
-    cbar.ax.set_ylabel(cbar2_label, rotation=0)
+    cbar.ax.set_ylabel(cbar2_label, 
+                       rotation=0,
+                       labelpad=0, 
+                       )
         
     plt.subplots_adjust(wspace=wspace)
     if save_fig is not None: 
