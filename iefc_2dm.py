@@ -30,10 +30,7 @@ def take_measurement(sysi, probe_cube, probe_amplitude, DM=1, return_all=False, 
         for amp in amps:
             if DM==1:
                 sysi.add_dm1(amp*probe)
-                if sysi.exp_times_list is None:
-                    image = sysi.snap()
-                else:
-                    image = sysi.snap_many()
+                image = sysi.snap() if sysi.exp_times_list is None else sysi.snap_many()
                 images.append(image.flatten())
                 sysi.add_dm1(-amp*probe)
             elif DM==2:
