@@ -10,7 +10,8 @@ from IPython.display import display, clear_output
 
 from pathlib import Path
 # iefc_data_dir = Path('/groups/douglase/kians-data-files/roman-cgi-iefc-data')
-iefc_data_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
+# iefc_data_dir = Path('/home/kianmilani/Projects/roman-cgi-iefc-data')
+iefc_data_dir = Path('/npool/nvme/kianmilani/roman-cgi-iefc-data')
 
 def build_jacobian(sysi, 
                    calibration_amplitude, calibration_modes, 
